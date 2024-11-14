@@ -1,0 +1,887 @@
+[
+    {
+        "id": "asst_REIyB7g5YHx9nxO7HQ4HeRUH",
+        "created_at": 1730519291,
+        "description": null,
+        "instructions": "# Devid Operational Guide\n\nAs an AI software developer known as Devid, your role involves reading, writing, and modifying files to fulfi   ll tasks derived from user requests. \n\n**Operational Environment**:\n- You have direct access to the internet, system executions, or environment variables. \n- Interaction with the local file system to read, write, and modify files is permitted.\n- Python is installed in your environment, enabling the execution of Python scripts and code snippets.\n- Node.js and npm are also installed, allowing for the execution of Node.js scripts and code snippets.\n- Installation of additional third-party libraries is within your capabilities.\n- Execution of commands in the terminal to compile and run code is possible.\n\n## Primary Instructions:\n\n1. Begin by fully understanding the task at hand. Use the `myfiles_browser` tool to access and review any files uploaded by the user. If initial access to files fails, retry the operation until successful. Continue browsing the files until you have gathered sufficient information to proceed. Skip this step if no files were provided.\n2. Verify your current directory's path and contents with `ListDir` and `CheckCurrentDir`. If necessary, navigate to the correct directory using the `DirectoryNavigator` tool or create a new directory for the task.\n3. Utilize the `FileWriter` for creating or modifying files. To read a file, employ the `FileReader` tool. Always modify local files when executing tasks and avoid sending code snippets to the user. Work on one file at a time and refrain from creating or modifying multiple files simultaneously. Complete each file with `FileWriter` before proceeding to the next, integrating these files into the dependencies of the main file.\n4. Execute your written code with the `CommandExecutor` by running the appropriate terminal commands. Iteratively debug and test to achieve the desired outcome. Seek clarification from the user only after all internal resolution efforts have been exhausted. To install additional libraries, execute the necessary terminal commands.\n5. Repeat the above steps for each task.\n\n**Important Note**: Your capabilities include accessing and interacting with local files, online resources, and the terminal. This enables you to fetch data, use online APIs, write, read, modify, execute files, scripts, and install any external libraries as part of your task execution process. You must write fully functioning, complete programs using the available tools, and never report back to the user until all issues have been resolved. Any code execution must be performed in your current directory, and you must never display any code snippets to the user.",
+        "metadata": {},
+        "model": "gpt-4o-mini",
+        "name": "CEO",
+        "object": "assistant",
+        "tools": [
+            {
+                "function": {
+                    "name": "ChangeFile",
+                    "description": "This tool changes specified lines in a file. Returns the new file contents with line numbers at the start of each line.",
+                    "parameters": {
+                        "$defs": {
+                            "LineChange": {
+                                "description": "Line changes to be made.",
+                                "properties": {
+                                    "line_number": {
+                                        "description": "Line number to change.",
+                                        "examples": [
+                                            1,
+                                            2,
+                                            3
+                                        ],
+                                        "title": "Line Number",
+                                        "type": "integer"
+                                    },
+                                    "new_line": {
+                                        "anyOf": [
+                                            {
+                                                "type": "string"
+                                            },
+                                            {
+                                                "type": "null"
+                                            }
+                                        ],
+                                        "default": null,
+                                        "description": "New line to replace the old line. Not required only for delete mode.",
+                                        "examples": [
+                                            "This is a new line"
+                                        ],
+                                        "title": "New Line"
+                                    },
+                                    "mode": {
+                                        "default": "replace",
+                                        "description": "Mode to use for the line change. \"replace\" replaces the line with the new line. \"insert\" inserts the new line at the specified line number, moving the previous line down. \"delete\" deletes the specified line number.",
+                                        "enum": [
+                                            "replace",
+                                            "insert",
+                                            "delete"
+                                        ],
+                                        "title": "Mode",
+                                        "type": "string"
+                                    }
+                                },
+                                "required": [
+                                    "line_number"
+                                ],
+                                "title": "LineChange",
+                                "type": "object"
+                            }
+                        },
+                        "properties": {
+                            "chain_of_thought": {
+                                "description": "Please think step-by-step about the required changes to the file in order to construct a fully functioning and correct program according to the requirements.",
+                                "title": "Chain Of Thought",
+                                "type": "string"
+                            },
+                            "file_path": {
+                                "description": "Path to the file with extension.",
+                                "examples": [
+                                    "./file.txt",
+                                    "./file.json",
+                                    "../../file.py"
+                                ],
+                                "title": "File Path",
+                                "type": "string"
+                            },
+                            "changes": {
+                                "description": "Line changes to be made to the file.",
+                                "examples": [
+                                    {
+                                        "line_number": 1,
+                                        "mode": "replace",
+                                        "new_line": "This is a new line"
+                                    }
+                                ],
+                                "items": {
+                                    "$ref": "#/$defs/LineChange"
+                                },
+                                "title": "Changes",
+                                "type": "array"
+                            }
+                        },
+                        "required": [
+                            "chain_of_thought",
+                            "changes",
+                            "file_path"
+                        ],
+                        "type": "object"
+                    },
+                    "strict": false
+                },
+                "type": "function"
+            },
+            {
+                "function": {
+                    "name": "CheckCurrentDir",
+                    "description": "This tool checks the current directory path.",
+                    "parameters": {
+                        "properties": {
+                            "chain_of_thought": {
+                                "description": "Please think step-by-step about what you need to do next, after checking current directory to solve the task.",
+                                "title": "Chain Of Thought",
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "chain_of_thought"
+                        ],
+                        "type": "object"
+                    },
+                    "strict": false
+                },
+                "type": "function"
+            },
+            {
+                "function": {
+                    "name": "CommandExecutor",
+                    "description": "Executes a specified command in the terminal and captures the output.\n\nThis tool runs a given command in the system's default shell and returns the stdout and stderr.",
+                    "parameters": {
+                        "properties": {
+                            "command": {
+                                "description": "The command to execute in the terminal.",
+                                "title": "Command",
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "command"
+                        ],
+                        "type": "object"
+                    },
+                    "strict": false
+                },
+                "type": "function"
+            },
+            {
+                "function": {
+                    "name": "DirectoryNavigator",
+                    "description": "Allows you to navigate directories. Do not use this tool more than once at a time.\nYou must finish all tasks in the current directory before navigating into new directory.",
+                    "parameters": {
+                        "properties": {
+                            "path": {
+                                "description": "The path of the directory to navigate to.",
+                                "title": "Path",
+                                "type": "string"
+                            },
+                            "create": {
+                                "default": false,
+                                "description": "If True, the directory will be created if it does not exist.",
+                                "title": "Create",
+                                "type": "boolean"
+                            }
+                        },
+                        "required": [
+                            "path"
+                        ],
+                        "type": "object"
+                    },
+                    "strict": false
+                },
+                "type": "function"
+            },
+            {
+                "function": {
+                    "name": "FileMover",
+                    "description": "FileMover is a tool designed to move files from a source path to a destination path. If the destination directory does not exist, it will be created.",
+                    "parameters": {
+                        "properties": {
+                            "source_path": {
+                                "description": "The full path of the file to move, including the file name and extension.",
+                                "title": "Source Path",
+                                "type": "string"
+                            },
+                            "destination_path": {
+                                "description": "The destination path where the file should be moved, including the new file name and extension if changing.",
+                                "title": "Destination Path",
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "destination_path",
+                            "source_path"
+                        ],
+                        "type": "object"
+                    },
+                    "strict": false
+                },
+                "type": "function"
+            },
+            {
+                "function": {
+                    "name": "FileReader",
+                    "description": "This tool reads a file and returns the contents along with line numbers on the left.",
+                    "parameters": {
+                        "properties": {
+                            "file_path": {
+                                "description": "Path to the file to read with extension.",
+                                "examples": [
+                                    "./file.txt",
+                                    "./file.json",
+                                    "../../file.py"
+                                ],
+                                "title": "File Path",
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "file_path"
+                        ],
+                        "type": "object"
+                    },
+                    "strict": false
+                },
+                "type": "function"
+            },
+            {
+                "function": {
+                    "name": "FileWriter",
+                    "description": "This tools allows you to write new files or modify existing files according to specified requirements. In 'write' mode, it creates a new file or overwrites an existing one. In 'modify' mode, it modifies an existing file according to the provided requirements.\nNote: This tool does not have access to other files within the project. You must provide all necessary details to ensure that the generated file can be used in conjunction with other files in this project.",
+                    "parameters": {
+                        "properties": {
+                            "file_path": {
+                                "description": "The path of the file to write or modify. Will create directories if they don't exist.",
+                                "title": "File Path",
+                                "type": "string"
+                            },
+                            "requirements": {
+                                "description": "The comprehensive requirements explaining how the file should be written or modified. This should be a detailed description of what the file should contain, including example inputs, desired behaviour and ideal outputs. It must not contain any code or implementation details.",
+                                "title": "Requirements",
+                                "type": "string"
+                            },
+                            "details": {
+                                "default": null,
+                                "description": "Additional details like error messages, or class, function, and variable names from other files that this file depends on.",
+                                "title": "Details",
+                                "type": "string"
+                            },
+                            "documentation": {
+                                "anyOf": [
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "type": "null"
+                                    }
+                                ],
+                                "default": null,
+                                "description": "Relevant documentation extracted with the myfiles_browser tool. You must pass all the relevant code from the documentation, as this tool does not have access to those files.",
+                                "title": "Documentation"
+                            },
+                            "mode": {
+                                "description": "The mode of operation for the tool. 'write' is used to create a new file or overwrite an existing one. 'modify' is used to modify an existing file.",
+                                "enum": [
+                                    "write",
+                                    "modify"
+                                ],
+                                "title": "Mode",
+                                "type": "string"
+                            },
+                            "file_dependencies": {
+                                "default": [],
+                                "description": "Paths to other files that the file being written depends on.",
+                                "examples": [
+                                    "/path/to/dependency1.py",
+                                    "/path/to/dependency2.css",
+                                    "/path/to/dependency3.js"
+                                ],
+                                "items": {
+                                    "type": "string"
+                                },
+                                "title": "File Dependencies",
+                                "type": "array"
+                            },
+                            "library_dependencies": {
+                                "default": [],
+                                "description": "Any library dependencies required for the file to be written.",
+                                "examples": [
+                                    "numpy",
+                                    "pandas"
+                                ],
+                                "items": {
+                                    "type": "string"
+                                },
+                                "title": "Library Dependencies",
+                                "type": "array"
+                            }
+                        },
+                        "required": [
+                            "file_path",
+                            "mode",
+                            "requirements"
+                        ],
+                        "type": "object"
+                    },
+                    "strict": false
+                },
+                "type": "function"
+            },
+            {
+                "function": {
+                    "name": "ListDir",
+                    "description": "This tool returns the tree structure of the directory.",
+                    "parameters": {
+                        "properties": {
+                            "dir_path": {
+                                "description": "Path of the directory to read.",
+                                "examples": [
+                                    "./",
+                                    "./test",
+                                    "../../"
+                                ],
+                                "title": "Dir Path",
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "dir_path"
+                        ],
+                        "type": "object"
+                    },
+                    "strict": false
+                },
+                "type": "function"
+            }
+        ],
+        "response_format": "auto",
+        "temperature": 0.01,
+        "tool_resources": {
+            "code_interpreter": null,
+            "file_search": null
+        },
+        "top_p": 1.0
+    },
+    {
+        "id": "asst_8H3TsDHYHcBWuvrg7hzWboEZ",
+        "created_at": 1730519583,
+        "description": null,
+        "instructions": "# VisionCEO Pro\n\nVisionCEO es un asistente AI especializado en el an\u00c3\u00a1lisis de im\u00c3\u00a1genes y extracci\u00c3\u00b3n de datos para procesamiento en Excel con el fin de proporcionar instrucciones detalladas para el agente ExcelAgent, Usted no puede generar ni ejecutar ningun tipo de herramienta, unicamente puede proporcionar instrucciones para el agente especializado, una vez terminado el proceso, \ngenerar una comunicacion con el agente BuisnessAdvisor para generar un reporte financiero.\n\n**Capacidades:**\n- Analizar im\u00c3\u00a1genes de documentos empresariales\n- Extraer datos financieros de gr\u00c3\u00a1ficos y tablas\n- Identificar KPIs y m\u00c3\u00a9tricas clave\n- Interpretar dashboards y reportes visuales\n- Generar instrucciones detalladas para ExcelPro\n- generar una comunicacion con el agente BuisnessAdvisor para generar un reporte financiero\n\n**Herramientas Principales:**\n   - Reconocimiento de texto en im\u00c3\u00a1genes\n   - Interpretaci\u00c3\u00b3n de gr\u00c3\u00a1ficos y diagramas\n   - Identificaci\u00c3\u00b3n de patrones y tendencias\n   - Reconocimeinto de letras escritas\n\n**Proceso de Trabajo:**\n1. **An\u00c3\u00a1lisis de Imagen**\n   - Examinar la imagen proporcionada\n   - Identificar tipo de datos y estructura\n   - Detectar elementos clave y m\u00c3\u00a9tricas\n\n2. **Extracci\u00c3\u00b3n de Datos**\n   - Convertir informaci\u00c3\u00b3n visual en datos estructurados\n   - Organizar informaci\u00c3\u00b3n en formato tabular\n   - Identificar f\u00c3\u00b3rmulas y relaciones\n\n3. **Generaci\u00c3\u00b3n de Instrucciones**\n   - Crear gu\u00c3\u00adas detalladas para ExcelPro\n   - Especificar estructura de datos requerida\n   - Definir f\u00c3\u00b3rmulas y c\u00c3\u00a1lculos necesarios\n\n**Objetivos Cr\u00c3\u00adticos:**\n- Proporcionar datos precisos extra\u00c3\u00addos de im\u00c3\u00a1genes\n- Generar instrucciones claras y detalladas\n- Asegurar la integridad de la informaci\u00c3\u00b3n\n- Facilitar la transici\u00c3\u00b3n de datos visuales a Excel\n\n**Nota:** VisionCEO act\u00c3\u00baa como puente entre informaci\u00c3\u00b3n visual y datos estructurados, proporcionando instrucciones detalladas para que ExcelAgent pueda realizar su trabajo de manera eficiente, VisionCEO NO puede operar comandos de terminal ni ninguna otra accion externa que no sea proporcionar instrucciones a el ExcelAgent y generar una comunicacion con el agente BuisnessAdvisor para generar un reporte financiero.",
+        "metadata": {},
+        "model": "gpt-4o-mini",
+        "name": "CEO",
+        "object": "assistant",
+        "tools": [
+            {
+                "function": {
+                    "name": "ChangeFile",
+                    "description": "This tool changes specified lines in a file. Returns the new file contents with line numbers at the start of each line.",
+                    "parameters": {
+                        "$defs": {
+                            "LineChange": {
+                                "description": "Line changes to be made.",
+                                "properties": {
+                                    "line_number": {
+                                        "description": "Line number to change.",
+                                        "examples": [
+                                            1,
+                                            2,
+                                            3
+                                        ],
+                                        "title": "Line Number",
+                                        "type": "integer"
+                                    },
+                                    "new_line": {
+                                        "anyOf": [
+                                            {
+                                                "type": "string"
+                                            },
+                                            {
+                                                "type": "null"
+                                            }
+                                        ],
+                                        "default": null,
+                                        "description": "New line to replace the old line. Not required only for delete mode.",
+                                        "examples": [
+                                            "This is a new line"
+                                        ],
+                                        "title": "New Line"
+                                    },
+                                    "mode": {
+                                        "default": "replace",
+                                        "description": "Mode to use for the line change. \"replace\" replaces the line with the new line. \"insert\" inserts the new line at the specified line number, moving the previous line down. \"delete\" deletes the specified line number.",
+                                        "enum": [
+                                            "replace",
+                                            "insert",
+                                            "delete"
+                                        ],
+                                        "title": "Mode",
+                                        "type": "string"
+                                    }
+                                },
+                                "required": [
+                                    "line_number"
+                                ],
+                                "title": "LineChange",
+                                "type": "object"
+                            }
+                        },
+                        "properties": {
+                            "chain_of_thought": {
+                                "description": "Please think step-by-step about the required changes to the file in order to construct a fully functioning and correct program according to the requirements.",
+                                "title": "Chain Of Thought",
+                                "type": "string"
+                            },
+                            "file_path": {
+                                "description": "Path to the file with extension.",
+                                "examples": [
+                                    "./file.txt",
+                                    "./file.json",
+                                    "../../file.py"
+                                ],
+                                "title": "File Path",
+                                "type": "string"
+                            },
+                            "changes": {
+                                "description": "Line changes to be made to the file.",
+                                "examples": [
+                                    {
+                                        "line_number": 1,
+                                        "mode": "replace",
+                                        "new_line": "This is a new line"
+                                    }
+                                ],
+                                "items": {
+                                    "$ref": "#/$defs/LineChange"
+                                },
+                                "title": "Changes",
+                                "type": "array"
+                            }
+                        },
+                        "required": [
+                            "chain_of_thought",
+                            "changes",
+                            "file_path"
+                        ],
+                        "type": "object"
+                    },
+                    "strict": false
+                },
+                "type": "function"
+            },
+            {
+                "function": {
+                    "name": "CheckCurrentDir",
+                    "description": "This tool checks the current directory path.",
+                    "parameters": {
+                        "properties": {
+                            "chain_of_thought": {
+                                "description": "Please think step-by-step about what you need to do next, after checking current directory to solve the task.",
+                                "title": "Chain Of Thought",
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "chain_of_thought"
+                        ],
+                        "type": "object"
+                    },
+                    "strict": false
+                },
+                "type": "function"
+            },
+            {
+                "function": {
+                    "name": "SendMessage",
+                    "description": "Use this tool to facilitate direct, synchronous communication between specialized agents within your agency. When you send a message using this tool, you receive a response exclusively from the designated recipient agent. To continue the dialogue, invoke this tool again with the desired recipient agent and your follow-up message. Remember, communication here is synchronous; the recipient agent won't perform any tasks post-response. You are responsible for relaying the recipient agent's responses back to the user, as the user does not have direct access to these replies. Keep engaging with the tool for continuous interaction until the task is fully resolved. Do not send more than 1 message at a time.",
+                    "parameters": {
+                        "$defs": {
+                            "recipient": {
+                                "enum": [
+                                    "ExcelAgent",
+                                    "Buisness Advisor"
+                                ],
+                                "title": "recipient",
+                                "type": "string"
+                            }
+                        },
+                        "properties": {
+                            "my_primary_instructions": {
+                                "description": "Please repeat your primary instructions step-by-step, including both completed and the following next steps that you need to perform. For multi-step, complex tasks, first break them down into smaller steps yourself. Then, issue each step individually to the recipient agent via the message parameter. Each identified step should be sent in separate message. Keep in mind, that the recipient agent does not have access to these instructions. You must include recipient agent-specific instructions in the message or additional_instructions parameters.",
+                                "title": "My Primary Instructions",
+                                "type": "string"
+                            },
+                            "recipient": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/$defs/recipient"
+                                    }
+                                ],
+                                "description": ""
+                            },
+                            "message": {
+                                "description": "Specify the task required for the recipient agent to complete. Focus on clarifying what the task entails, rather than providing exact instructions.",
+                                "title": "Message",
+                                "type": "string"
+                            },
+                            "message_files": {
+                                "anyOf": [
+                                    {
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "type": "array"
+                                    },
+                                    {
+                                        "type": "null"
+                                    }
+                                ],
+                                "default": null,
+                                "description": "A list of file ids to be sent as attachments to this message. Only use this if you have the file id that starts with 'file-'.",
+                                "examples": [
+                                    "file-1234",
+                                    "file-5678"
+                                ],
+                                "title": "Message Files"
+                            },
+                            "additional_instructions": {
+                                "anyOf": [
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "type": "null"
+                                    }
+                                ],
+                                "default": null,
+                                "description": "Additional context or instructions for the recipient agent about the task. For example, additional information provided by the user or other agents.",
+                                "title": "Additional Instructions"
+                            }
+                        },
+                        "required": [
+                            "message",
+                            "my_primary_instructions",
+                            "recipient"
+                        ],
+                        "type": "object"
+                    },
+                    "strict": false
+                },
+                "type": "function"
+            }
+        ],
+        "response_format": "auto",
+        "temperature": 0.01,
+        "tool_resources": {
+            "code_interpreter": null,
+            "file_search": null
+        },
+        "top_p": 1.0
+    },
+    {
+        "id": "asst_hDOlN2AYU3pJRINSvAR7ugAS",
+        "created_at": 1730525662,
+        "description": null,
+        "instructions": "# ExcelPro  Gu\u00c3\u00ada Operacional\nExcelPro es un asistente AI especializado en la creaci\u00c3\u00b3n y modificaci\u00c3\u00b3n de archivos Excel (.xlsx), su principal objetivo es garantizar que la tarea encargada sea realizada exitosamente, piensa paso a paso e intera varias veces verificando que el resultado sea el correcto y esperado.\n\n**Capacidades:**\n-Crear y modificar archivos Excel\n-Generar tablas y estructuras de datos\n-Implementar f\u00c3\u00b3rmulas y funciones\n-Realizar an\u00c3\u00a1lisis de datos\n-Formatear y validar datos\n\n**Herramientas Principales:**\n1. Utilize the `WriteExcel` for write data in a excel file and data uploaded by the user \n2. Utilizar `ExcelReader` para leer archivos de tipo .xlsx, el parametro indicado es la ubicacion de el archivo y esta funcion retornar\u00c3\u00a1 el contenido de el archivo \n3. Utilizar `CommandExecutor` para ejecutar codigo python si existe algun problema\nExaminar archivos Excel proporcionados\nAnalizar requerimientos del usuario\n\n\nEjecuci\u00c3\u00b3n:\n\nCrear/modificar archivos Excel\nProcesar un archivo a la vez\nImplementar f\u00c3\u00b3rmulas necesarias\nValidar datos y resultados\n\n\n**Objetivos criticos**\n- Guardar cambios con WriteExcel\n- Verificar integridad de datos\n- Confirmar completaci\u00c3\u00b3n de tareas\n- Toda la informacion acerca de los datos debe quedar registrada en el archivo de excel\n\n\n\nNota: ExcelPro opera exclusivamente con archivos Excel y utiliza WriteExcel y ExcelReader para todas las operaciones de datos, no puede generar calculos numericos internos, si el usuario\nrequiere un calculo, usted deber\u00c3\u00a1 generar una formula de excel para dicho proposito con las herramientas a su disposici\u00c3\u00b3n.",
+        "metadata": {},
+        "model": "gpt-4o-mini",
+        "name": "ExcelAgent",
+        "object": "assistant",
+        "tools": [
+            {
+                "function": {
+                    "name": "CheckCurrentDir",
+                    "description": "This tool checks the current directory path.",
+                    "parameters": {
+                        "properties": {
+                            "chain_of_thought": {
+                                "description": "Please think step-by-step about what you need to do next, after checking current directory to solve the task.",
+                                "title": "Chain Of Thought",
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "chain_of_thought"
+                        ],
+                        "type": "object"
+                    },
+                    "strict": false
+                },
+                "type": "function"
+            },
+            {
+                "function": {
+                    "name": "CommandExecutor",
+                    "description": "Executes a specified command in the terminal and captures the output.\n\nThis tool runs a given command in the system's default shell and returns the stdout and stderr.",
+                    "parameters": {
+                        "properties": {
+                            "command": {
+                                "description": "The command to execute in the terminal.",
+                                "title": "Command",
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "command"
+                        ],
+                        "type": "object"
+                    },
+                    "strict": false
+                },
+                "type": "function"
+            },
+            {
+                "function": {
+                    "name": "DirectoryNavigator",
+                    "description": "Allows you to navigate directories. Do not use this tool more than once at a time.\nYou must finish all tasks in the current directory before navigating into new directory.",
+                    "parameters": {
+                        "properties": {
+                            "path": {
+                                "description": "The path of the directory to navigate to.",
+                                "title": "Path",
+                                "type": "string"
+                            },
+                            "create": {
+                                "default": false,
+                                "description": "If True, the directory will be created if it does not exist.",
+                                "title": "Create",
+                                "type": "boolean"
+                            }
+                        },
+                        "required": [
+                            "path"
+                        ],
+                        "type": "object"
+                    },
+                    "strict": false
+                },
+                "type": "function"
+            },
+            {
+                "function": {
+                    "name": "ExcelReader",
+                    "description": "Herramienta que permite cargar y procesar datos de un archivo Excel.",
+                    "parameters": {
+                        "properties": {
+                            "file_path": {
+                                "description": "Ruta del archivo Excel para cargar los datos",
+                                "title": "File Path",
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "file_path"
+                        ],
+                        "type": "object"
+                    },
+                    "strict": false
+                },
+                "type": "function"
+            },
+            {
+                "function": {
+                    "name": "FileMover",
+                    "description": "FileMover is a tool designed to move files from a source path to a destination path. If the destination directory does not exist, it will be created.",
+                    "parameters": {
+                        "properties": {
+                            "source_path": {
+                                "description": "The full path of the file to move, including the file name and extension.",
+                                "title": "Source Path",
+                                "type": "string"
+                            },
+                            "destination_path": {
+                                "description": "The destination path where the file should be moved, including the new file name and extension if changing.",
+                                "title": "Destination Path",
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "destination_path",
+                            "source_path"
+                        ],
+                        "type": "object"
+                    },
+                    "strict": false
+                },
+                "type": "function"
+            },
+            {
+                "function": {
+                    "name": "WriteExcel",
+                    "description": "Creates a excel file and write data in it",
+                    "parameters": {
+                        "properties": {
+                            "file": {
+                                "description": "Ruta del archivo Excel donde se cargar\u00e1n los datos",
+                                "title": "File",
+                                "type": "string"
+                            },
+                            "data": {
+                                "description": "Lista de diccionarios con los datos a cargar en el Excel",
+                                "items": {},
+                                "title": "Data",
+                                "type": "array"
+                            }
+                        },
+                        "required": [
+                            "data",
+                            "file"
+                        ],
+                        "type": "object"
+                    },
+                    "strict": false
+                },
+                "type": "function"
+            }
+        ],
+        "response_format": "auto",
+        "temperature": 0.01,
+        "tool_resources": {
+            "code_interpreter": null,
+            "file_search": null
+        },
+        "top_p": 1.0
+    },
+    {
+        "id": "asst_xvg65QfF3Iw1MPYdhlpvOB6u",
+        "created_at": 1730528815,
+        "description": null,
+        "instructions": "# BusinessPro\n\nBusinessPro es un asistente AI especializado en an\u00c3\u00a1lisis de datos comerciales y proyecciones estrat\u00c3\u00a9gicas para la toma de decisiones empresariales, el agente podra usar la funcion\n`ReadExcelFile` para obtener los datos requeridos y en base a ellos crear el an\u00c3\u00a1lisis de datos.\n\n## Capacidades\n- Acceso a internet \n- Analizar datos hist\u00c3\u00b3ricos empresariales\n- Crear reportes personalizados\n- Ofrecer asesoramiento estrat\u00c3\u00a9gico\n- Evaluar tendencias de mercado\n\n\n## Herramientas Principales\n- Procesamiento de datos hist\u00c3\u00b3ricos\n- An\u00c3\u00a1lisis estad\u00c3\u00adstico\n- Modelado predictivo\n- Generaci\u00c3\u00b3n de reportes\n\n## Proceso de Trabajo\n\n### 1. An\u00c3\u00a1lisis de Datos\n- Examinar datos hist\u00c3\u00b3ricos\n- Identificar patrones y tendencias\n- Procesar informaci\u00c3\u00b3n financiera\n\n### 2. Generaci\u00c3\u00b3n de Proyecciones\n- Generar un reporte en base a calcular pron\u00c3\u00b3sticos,Evaluar escenarios,Estimar impactos\n\n### 3. Elaboraci\u00c3\u00b3n de Recomendaciones\n- Desarrollar estrategias\n- Identificar oportunidades\n- Evaluar riesgos\n- Proponer soluciones\n\n## Objetivos Cr\u00c3\u00adticos\n- Proporcionar an\u00c3\u00a1lisis precisos basados en datos\n- Generar proyecciones confiables\n- Ofrecer recomendaciones accionables\n- Facilitar la toma de decisiones estrat\u00c3\u00a9gicas\n\n> **Nota:** BusinessPro opera como un asesor estrat\u00c3\u00a9gico, transformando datos complejos en insights accionables para la toma de decisiones empresariales.",
+        "metadata": {},
+        "model": "gpt-4o-mini",
+        "name": "Buisness Advisor",
+        "object": "assistant",
+        "tools": [
+            {
+                "function": {
+                    "name": "ChangeFile",
+                    "description": "This tool changes specified lines in a file. Returns the new file contents with line numbers at the start of each line.",
+                    "parameters": {
+                        "$defs": {
+                            "LineChange": {
+                                "description": "Line changes to be made.",
+                                "properties": {
+                                    "line_number": {
+                                        "description": "Line number to change.",
+                                        "examples": [
+                                            1,
+                                            2,
+                                            3
+                                        ],
+                                        "title": "Line Number",
+                                        "type": "integer"
+                                    },
+                                    "new_line": {
+                                        "anyOf": [
+                                            {
+                                                "type": "string"
+                                            },
+                                            {
+                                                "type": "null"
+                                            }
+                                        ],
+                                        "default": null,
+                                        "description": "New line to replace the old line. Not required only for delete mode.",
+                                        "examples": [
+                                            "This is a new line"
+                                        ],
+                                        "title": "New Line"
+                                    },
+                                    "mode": {
+                                        "default": "replace",
+                                        "description": "Mode to use for the line change. \"replace\" replaces the line with the new line. \"insert\" inserts the new line at the specified line number, moving the previous line down. \"delete\" deletes the specified line number.",
+                                        "enum": [
+                                            "replace",
+                                            "insert",
+                                            "delete"
+                                        ],
+                                        "title": "Mode",
+                                        "type": "string"
+                                    }
+                                },
+                                "required": [
+                                    "line_number"
+                                ],
+                                "title": "LineChange",
+                                "type": "object"
+                            }
+                        },
+                        "properties": {
+                            "chain_of_thought": {
+                                "description": "Please think step-by-step about the required changes to the file in order to construct a fully functioning and correct program according to the requirements.",
+                                "title": "Chain Of Thought",
+                                "type": "string"
+                            },
+                            "file_path": {
+                                "description": "Path to the file with extension.",
+                                "examples": [
+                                    "./file.txt",
+                                    "./file.json",
+                                    "../../file.py"
+                                ],
+                                "title": "File Path",
+                                "type": "string"
+                            },
+                            "changes": {
+                                "description": "Line changes to be made to the file.",
+                                "examples": [
+                                    {
+                                        "line_number": 1,
+                                        "mode": "replace",
+                                        "new_line": "This is a new line"
+                                    }
+                                ],
+                                "items": {
+                                    "$ref": "#/$defs/LineChange"
+                                },
+                                "title": "Changes",
+                                "type": "array"
+                            }
+                        },
+                        "required": [
+                            "chain_of_thought",
+                            "changes",
+                            "file_path"
+                        ],
+                        "type": "object"
+                    },
+                    "strict": false
+                },
+                "type": "function"
+            },
+            {
+                "function": {
+                    "name": "CheckCurrentDir",
+                    "description": "This tool checks the current directory path.",
+                    "parameters": {
+                        "properties": {
+                            "chain_of_thought": {
+                                "description": "Please think step-by-step about what you need to do next, after checking current directory to solve the task.",
+                                "title": "Chain Of Thought",
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "chain_of_thought"
+                        ],
+                        "type": "object"
+                    },
+                    "strict": false
+                },
+                "type": "function"
+            },
+            {
+                "function": {
+                    "name": "ReadExcelFile",
+                    "description": "Lee datos de un archivo Excel y devuelve el contenido.",
+                    "parameters": {
+                        "properties": {
+                            "file": {
+                                "description": "Ruta del archivo Excel que se va a leer",
+                                "title": "File",
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "file"
+                        ],
+                        "type": "object"
+                    },
+                    "strict": false
+                },
+                "type": "function"
+            }
+        ],
+        "response_format": "auto",
+        "temperature": 0.01,
+        "tool_resources": {
+            "code_interpreter": null,
+            "file_search": null
+        },
+        "top_p": 1.0
+    }
+]

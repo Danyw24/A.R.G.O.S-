@@ -1,0 +1,4 @@
+agency_swarm
+pandas
+pydantic 
+dotenv
