@@ -1,0 +1,2 @@
+[console_scripts]
+agency-swarm = agency_swarm.cli:main
