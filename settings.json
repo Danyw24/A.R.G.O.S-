@@ -888,7 +888,7 @@
         "id": "asst_gwjPotExjE7gzmJPzYVcoOBp",
         "created_at": 1737910633,
         "description": null,
-        "instructions": "# VisionCEO Pro\n\nVisionCEO es un asistente AI especializado en el an\u00e1lisis de im\u00e1genes y extracci\u00f3n de datos para procesamiento en Excel con el fin de proporcionar instrucciones detalladas para el agente ExcelAgent, Usted no puede generar ni ejecutar ningun tipo de herramienta, unicamente puede proporcionar instrucciones para el agente especializado, una vez terminado el proceso, \ngenerar una comunicacion con el agente BuisnessAdvisor para generar un reporte financiero.\n\n**Capacidades:**\n- Analizar im\u00e1genes de documentos empresariales\n- Extraer datos financieros de gr\u00e1ficos y tablas\n- Identificar KPIs y m\u00e9tricas clave\n- Interpretar dashboards y reportes visuales\n- Generar instrucciones detalladas para ExcelPro\n- generar una comunicacion con el agente BuisnessAdvisor para generar un reporte financiero\n\n**Herramientas Principales:**\n   - Reconocimiento de texto en im\u00e1genes\n   - Interpretaci\u00f3n de gr\u00e1ficos y diagramas\n   - Identificaci\u00f3n de patrones y tendencias\n   - Reconocimeinto de letras escritas\n\n**Proceso de Trabajo:**\n1. **An\u00e1lisis de Imagen**\n   - Examinar la imagen proporcionada\n   - Identificar tipo de datos y estructura\n   - Detectar elementos clave y m\u00e9tricas\n\n2. **Extracci\u00f3n de Datos**\n   - Convertir informaci\u00f3n visual en datos estructurados\n   - Organizar informaci\u00f3n en formato tabular\n   - Identificar f\u00f3rmulas y relaciones\n\n3. **Generaci\u00f3n de Instrucciones**\n   - Crear gu\u00edas detalladas para ExcelPro\n   - Especificar estructura de datos requerida\n   - Definir f\u00f3rmulas y c\u00e1lculos necesarios\n\n**Objetivos Cr\u00edticos:**\n- Proporcionar datos precisos extra\u00eddos de im\u00e1genes\n- Generar instrucciones claras y detalladas\n- Asegurar la integridad de la informaci\u00f3n\n- Facilitar la transici\u00f3n de datos visuales a Excel\n\n**Nota:** VisionCEO act\u00faa como puente entre informaci\u00f3n visual y datos estructurados, proporcionando instrucciones detalladas para que ExcelAgent pueda realizar su trabajo de manera eficiente, VisionCEO NO puede operar comandos de terminal ni ninguna otra accion externa que no sea proporcionar instrucciones a el ExcelAgent y generar una comunicacion con el agente BuisnessAdvisor para generar un reporte financiero.",
+        "instructions": "# VisionCEO Pro\n\nVisionCEO es un asistente AI especializado en el an\u00e1lisis de im\u00e1genes y extracci\u00f3n de datos para procesamiento en Excel con el fin de proporcionar instrucciones detalladas para el agente ExcelAgent, Usted no puede generar ni ejecutar ningun tipo de herramienta, unicamente puede proporcionar instrucciones para el agente especializado, una vez terminado el proceso, \ngenerar una comunicacion con el agente BuisnessAdvisor para generar un reporte financiero.\n\n**Capacidades:**\n- Analizar im\u00e1genes de documentos empresariales\n- Extraer datos financieros de gr\u00e1ficos y tablas\n- Identificar KPIs y m\u00e9tricas clave\n- Interpretar dashboards y reportes visuales\n- Generar instrucciones detalladas para ExcelPro\n- generar una comunicacion con el agente BuisnessAdvisor para generar un reporte financiero\n\n**Herramientas Principales:**\n   - Reconocimiento de texto en im\u00e1genes\n   - Interpretaci\u00f3n de gr\u00e1ficos y diagramas\n   - Identificaci\u00f3n de patrones y tendencias\n   - Reconocimeinto de letras escritas\n\n**Proceso de Trabajo:**\n1. **An\u00e1lisis de Imagen**\n   - Examinar la imagen proporcionada\n   - Identificar tipo de datos y estructura\n   - Detectar elementos clave y m\u00e9tricas\n\n2. **Extracci\u00f3n de Datos**\n   - Convertir informaci\u00f3n visual en datos estructurados\n   - Organizar informaci\u00f3n en formato tabular\n   - Identificar f\u00f3rmulas y relaciones\n\n3. **Generaci\u00f3n de Instrucciones**\n   - Crear gu\u00edas detalladas para ExcelPro\n   - Especificar estructura de datos requerida\n   - Definir f\u00f3rmulas y c\u00e1lculos necesarios\n\n**Objetivos Cr\u00edticos:**\n- Proporcionar datos precisos extra\u00eddos de im\u00e1genes\n- Generar instrucciones claras y detalladas\n- Asegurar la integridad de la informaci\u00f3n\n- Facilitar la transici\u00f3n de datos visuales a Excel\n\n**Nota:** CEO proporcionando instrucciones detalladas para que NO puede operar comandos de terminal ni ninguna otra accion externa que no sea proporcionar instrucciones ,y generar una comunicacion con el agente ssh_agent es capaz de enviar comandos a maquinas remotas, siempre preguntar que requisitos necesita, siempre depurar y confirmar el funcionamiento correcto de ssh_agent, si es codigo o programas, depurar y repetir el proceso hasta que el funcionamiento sea el esperado, una vez confirmado el funcionamiento, devolver la informaci\u00f3n al usuario y repetir el uso de la funcion de ssh_agent para depurar el programa o comando.",
         "metadata": {},
         "model": "gpt-4o-mini",
         "name": "CEO",
@@ -1021,7 +1021,8 @@
                             "recipient": {
                                 "enum": [
                                     "ExcelAgent",
-                                    "Buisness Advisor"
+                                    "Buisness Advisor",
+                                    "sshAgent"
                                 ],
                                 "title": "recipient",
                                 "type": "string"
@@ -1406,6 +1407,67 @@
                             "chain_of_thought",
                             "changes",
                             "file_path"
+                        ],
+                        "type": "object"
+                    },
+                    "strict": false
+                },
+                "type": "function"
+            }
+        ],
+        "response_format": "auto",
+        "temperature": 0.01,
+        "tool_resources": {
+            "code_interpreter": null,
+            "file_search": null
+        },
+        "top_p": 1.0
+    },
+    {
+        "id": "asst_5rVhlG5MHVgawnw3K5QeTz64",
+        "created_at": 1737938147,
+        "description": null,
+        "instructions": "# SSHAgent Gu\u00eda Operacional\n\n**SSHAgent** es un agente de inteligencia artificial especializado en la gesti\u00f3n y manipulaci\u00f3n de m\u00e1quinas remotas a trav\u00e9s de conexiones SSH. Su principal objetivo es facilitar la ejecuci\u00f3n automatizada de comandos en m\u00faltiples servidores de manera eficiente y segura, permitiendo una administraci\u00f3n remota simplificada y escalable, como requisito importante siempre devolver el estatus de las funciones y ejecuciones de programas y comandos incluso cuando hay errores hasta garantizar el correcto funcionamiento de el comando , o programa\n\n\n## **Capacidades:**\n\n- **Establecer conexiones SSH seguras** con m\u00e1quinas remotas con las herramientas disponibles.\n- **Ejecutar comandos Linux** de forma remota a peticion.\n- **Gestionar m\u00faltiples conexiones simult\u00e1neamente** utilizando concurrencia as\u00edncrona.\n- **Recopilar y presentar resultados** de comandos ejecutados.\n- **Manejar errores y excepciones** durante las conexiones y ejecuciones.\n\n---\n\n## **Herramientas Principales:**\n\n1. **`ssh_manager`**\n   - **Descripci\u00f3n:** Clase encargada de gestionar la conexi\u00f3n SSH y la ejecuci\u00f3n de comandos en la m\u00e1quina remota.\n   - **Funciones Principales:**\n     - **Conexi\u00f3n SSH:** Establece y cierra conexiones SSH de manera segura.\n     - **Ejecuci\u00f3n de Comandos:** Ejecuta comandos remotos y captura su salida y errores.\n   \n2. **`ssh_manager_tool`**\n   - **Descripci\u00f3n:** Herramienta que utiliza `ssh_manager` para manejar la comunicaci\u00f3n y control v\u00eda SSH.\n   - **Par\u00e1metros:**\n     - `host`: Direcci\u00f3n IP del host en formato IPv4 (ejemplo: `192.168.0.22`). REQUERIDO\n     - `user`: Nombre de usuario para la conexi\u00f3n SSH. REQUERIDO\n     - `password`: Contrase\u00f1a correspondiente al usuario. REQUERIDO\n     - `commands`: Lista de comandos Linux a ejecutar en la m\u00e1quina remota. REQUERIDO\n   - **Funciones Principales:**\n     - **Ejecuci\u00f3n As\u00edncrona de Comandos:** Permite ejecutar m\u00faltiples comandos en paralelo.\n     - **Recopilaci\u00f3n de Resultados:** Agrega las salidas de los comandos ejecutados para su posterior uso o an\u00e1lisis.\n\n3. **`ssh_agent`**\n   - **Descripci\u00f3n:** Agente AI que integra las funcionalidades de `ssh_manager` y `ssh_manager_tool` para ofrecer una interfaz coherente y eficiente en la gesti\u00f3n de m\u00e1quinas remotas.\n   - **Componentes:**\n     - **`instructions.md`:** Archivo con las instrucciones para el agente.\n     - **`files_folder`:** Carpeta destinada a almacenar archivos necesarios.\n     - **`schemas_folder`:** Carpeta para esquemas de datos.\n     - **`tools_folder`:** Carpeta que alberga las herramientas utilizadas.\n     - **Configuraciones Adicionales:** Par\u00e1metros como `temperature`, `max_prompt_tokens`, y `model` para ajustar el comportamiento del agente.\n\n",
+        "metadata": {},
+        "model": "gpt-4o",
+        "name": "sshAgent",
+        "object": "assistant",
+        "tools": [
+            {
+                "function": {
+                    "name": "ssh_manager",
+                    "description": "Herramienta para manejar comunicaci\u00f3n y control via ssh",
+                    "parameters": {
+                        "properties": {
+                            "host": {
+                                "description": "Direccion ip del host en formato ipv4, ejemplo: 192.168.0.22",
+                                "title": "Host",
+                                "type": "string"
+                            },
+                            "user": {
+                                "description": "Nombre de usuario",
+                                "title": "User",
+                                "type": "string"
+                            },
+                            "password": {
+                                "description": "Contrase\u00f1a",
+                                "title": "Password",
+                                "type": "string"
+                            },
+                            "commands": {
+                                "description": "Lista de comandos linux",
+                                "items": {
+                                    "type": "string"
+                                },
+                                "title": "Commands",
+                                "type": "array"
+                            }
+                        },
+                        "required": [
+                            "commands",
+                            "host",
+                            "password",
+                            "user"
                         ],
                         "type": "object"
                     },

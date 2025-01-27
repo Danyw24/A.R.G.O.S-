@@ -14,12 +14,20 @@ import os
 from CEO import CEO
 from ExcelAgent import ExcelAgent
 from BuissnesAdvisor import BuisnessAgent
+from ssh_agent_manager import ssh_agent
 
 load_dotenv()
 
 app = Flask(__name__)
 API_KEY=os.getenv("OPENAI_KEY")
 
+
+# Instrucciones y condiciones de gtp4 realtime API
+with open("realtime_manifest.md", "r", encoding="utf-8") as rt_model_instructions:
+    realtime_instructions = rt_model_instructions.read()  
+
+
+# Establecer API KEY 
 def setApiKey():
     try:
         load_dotenv(Path(__file__).parent / ".env")
@@ -29,22 +37,24 @@ def setApiKey():
         print("[-]Error al obtener: OPENAI_KEY")
    
 
+
 @app.route('/')
 def index():
     return render_template('main_interface.html')
 
 
+# sesión RTC para API
 @app.route('/session', methods=['GET'])
 def get_session():
     try:
         url = "https://api.openai.com/v1/realtime/sessions"
         
         payload = {
-            "model": "gpt-4o-mini-realtime-preview",
+            "model": "gpt-4o-realtime-preview",
             "modalities": ["audio", "text"],
-            "instructions": "Eres un asistene amistoso que habla en español, tu nombre es ARGOS, tus respuestas deberan ser similares a una conversación humana normal incluso con un poco de sarcasmo si es necesario, siempre que haya una pregunta que no sea simple o no puedas responder utiliza la funcion ask y envia el mensaje en formato de pregunta de manera breve",
+            "instructions": realtime_instructions,
             "voice" : "ash"
-        }
+        }     
         
         headers = {
             'Authorization': 'Bearer ' + API_KEY,
@@ -57,7 +67,7 @@ def get_session():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-
+# Obtener datos de Agency Swarm
 @app.route("/ask", methods=['POST'])
 def ask():
     try: 
@@ -70,7 +80,7 @@ def ask():
         return jsonify({"error" : "Ha ocurrido un error :" + str(err)})
     
     
-
+# Entry point
 if __name__ == "__main__":
     # OpenAI API key
     setApiKey()
@@ -79,11 +89,13 @@ if __name__ == "__main__":
     ceo = CEO()
     ExcelAgent = ExcelAgent()
     BuisnessAdvisor = BuisnessAgent()
+    ssh_agent = ssh_agent()
     global agency
     agency = Agency([
         ceo,  
         [ceo, ExcelAgent],
-        [ceo, BuisnessAdvisor]
+        [ceo, BuisnessAdvisor],
+        [ceo, ssh_agent]
     
         ],
         shared_instructions='./agency_manifest.md',
@@ -91,5 +103,6 @@ if __name__ == "__main__":
         max_prompt_tokens=75    
     ) # instrucciones compartidas 
 
+    # usar para gradio y depurar agentes agency.demo_gradio(height=900)
     app.run(debug=True)
 

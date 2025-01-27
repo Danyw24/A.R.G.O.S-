@@ -11,7 +11,7 @@ class CEO(Agent):
             tools_folder="./tools",
             temperature=0.01,
             max_prompt_tokens=10000,
-            model="gpt-4o-mini",
+            model="gpt-4o",
         )
 
     def response_validator(self, message):
