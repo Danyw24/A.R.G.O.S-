@@ -101,14 +101,14 @@ async function initOpenAIRealtime() {
                         {
                             type: 'function',
                             name: 'ask',
-                            description: 'ask to agency',
+                            description: 'ask to agency and then return the response to user',
                             parameters: {
                                 type: 'object',
                                 properties: {
                                     
                                     message: { 
                                         type: 'string', 
-                                        description: 'message content to ask to agency' 
+                                        description: 'message content to ask to agency and then return the response to user' 
                                     }
                                 },
                                 required: ['message']
@@ -215,9 +215,13 @@ async function ask(message){
         }
 
         const responseData = await response.json();
-        console.log("Respuesta la agencia: " + responseData.response);
+        const AgencyResponce = responseData.response + ", A continuacion informa al usuario de la respuesta de la agencia"; 
         loader.style.display = 'none';
-        return responseData.response;
+        // insertar audio de respuesta -->
+        
+        
+
+        return AgencyResponce;
 
 
     } catch (error) {
@@ -226,44 +230,6 @@ async function ask(message){
     } 
 }
 
-
-function sendDataChannel(responseData){
-    const event = {
-        type: "conversation.item.create",
-        item: {
-            type: 'message',
-            role: 'assistant',
-            content: [
-                {
-                    type: "text",
-                    text: responseData.response
-                }
-            ]
-           
-        }
-    };
-    dataChannel.send(JSON.stringify(event));
-    console.log("Datos enviados al DataChannel exitosamente");
-}
-
-
-async function waitForDataChannel() {
-    return new Promise((resolve) => {
-        if (dataChannel.readyState === "open") {
-            resolve();
-        } else {
-            console.log("⌛ Esperando que DataChannel se abra... status : " + dataChannel.readyState);
-            const interval = setInterval(() => {
-                peerConnection.restartIce();
-                if (dataChannel.readyState === "open") {
-                    clearInterval(interval);
-                    console.log("✅ DataChannel está abierto y listo.");
-                    resolve();
-                }
-            }, 1500); // Verifica cada 800ms
-        }
-    });
-}
 
 function endCall() {
     stopBeeping();

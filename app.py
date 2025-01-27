@@ -13,7 +13,6 @@ from pathlib import Path
 import os
 from CEO import CEO
 from ExcelAgent import ExcelAgent
-from BuissnesAdvisor import BuisnessAgent
 from ssh_agent_manager import ssh_agent
 
 load_dotenv()
@@ -88,13 +87,11 @@ if __name__ == "__main__":
     #Inicializar Agentes IA especializados 
     ceo = CEO()
     ExcelAgent = ExcelAgent()
-    BuisnessAdvisor = BuisnessAgent()
     ssh_agent = ssh_agent()
     global agency
     agency = Agency([
         ceo,  
         [ceo, ExcelAgent],
-        [ceo, BuisnessAdvisor],
         [ceo, ssh_agent]
     
         ],
@@ -104,5 +101,5 @@ if __name__ == "__main__":
     ) # instrucciones compartidas 
 
     # usar para gradio y depurar agentes agency.demo_gradio(height=900)
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=5000, debug=True)
 
