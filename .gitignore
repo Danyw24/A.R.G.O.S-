@@ -1,0 +1,4 @@
+.env
+./venv
+venv/*
+./CEO/__pycache__venv/
