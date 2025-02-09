@@ -1,4 +1,4 @@
 .env
-./venv
+argos_venv
 venv/*
 ./CEO/__pycache__venv/
