@@ -1098,7 +1098,8 @@
             "code_interpreter": null,
             "file_search": null
         },
-        "top_p": 1.0
+        "top_p": 1.0,
+        "reasoning_effort": null
     },
     {
         "id": "asst_H8RmCyZ28SdP5L2iknwQVXWa",
@@ -1262,7 +1263,8 @@
             "code_interpreter": null,
             "file_search": null
         },
-        "top_p": 1.0
+        "top_p": 1.0,
+        "reasoning_effort": null
     },
     {
         "id": "asst_gAe1ZRSEL86NBSBebeuv91zF",
@@ -1529,6 +1531,7 @@
             "code_interpreter": null,
             "file_search": null
         },
-        "top_p": 1.0
+        "top_p": 1.0,
+        "reasoning_effort": null
     }
 ]

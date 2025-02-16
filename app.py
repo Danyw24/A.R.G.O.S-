@@ -1,9 +1,34 @@
 # ARGOS_project_beta.py
+"""
+ARGOS:  
+El sistema propuesto es una arquitectura de agencia IA multicapa que integra capacidades cognitivas
+avanzadas con ejecución autónoma de tareas complejas. En la capa superior de interfaz de usuario,
+se procesan entradas multimodales mediante GPT-4 mejorado con un intérprete neuro-simbólico que 
+combina modelos de lenguaje con reglas lógicas programables, seguido de un clasificador de intenciones
+que detecta objetivos primarios, contexto implícito y riesgos potenciales. Las decisiones estratégicas son 
+gestionadas por un núcleo cognitivo tipo CEO que coordina un consejo de directores autónomos especializados
+en análisis técnico (CTO), operaciones (COO), gestión de recursos (CFO) y seguridad (CSO), permitiendo 
+evaluaciones multidisciplinares para solicitudes críticas. La ejecución se delega en agentes especializados 
+(SSH, Excel, desarrollo de código, operaciones web, RAG y seguridad) que pueden auto-generarse para tareas 
+específicas, operando sobre una infraestructura distribuida con memoria multinivel (Redis para contexto 
+inmediato, bases vectoriales para patrones semánticos y grafos de conocimiento para relaciones complejas).
+El ciclo de desarrollo autónomo integra generación de código con análisis estático/dinámico mejorado, 
+validación de seguridad, implementación controlada y monitoreo en tiempo real, alimentando un sistema de 
+auto-depuración que corrige errores y actualiza la base de conocimiento mediante triple bucle de aprendizaje 
+(rápido, medio y estratégico). La seguridad se implementa como capa transversal con verificación en múltiples 
+etapas, simulaciones predictivas y arquitectura Zero-Trust, mientras que la personalización se logra mediante 
+perfiles dinámicos que almacenan preferencias cognitivas y patrones de interacción física con dispositivos.
+Todo el flujo mantiene trazabilidad completa mediante registros en el grafo de conocimiento, permitiendo evolución
+continua del sistema sin intervención humana directa, combinando eficiencia operativa con capacidad de 
+razonamiento estratégico profundo.
+"""
+
 import os
 import logging
 from pathlib import Path
 from typing import Dict, Any
 import requests
+
 
 from flask import Flask, jsonify, request, render_template
 from flask_cors import CORS
@@ -35,14 +60,14 @@ REALTIME_MANIFEST_PATH = Path(__file__).parent / "realtime_manifest.md"
 class AppConfig:
     """Configuración de la aplicación"""
     def __init__(self):
-        self.openai_key = os.getenv("OPENAI_KEY") #OPEN_AI API KEY 
+        self.openai_key = os.getenv("OPENAI_API_KEY") #OPEN_AI API KEY 
         self.validate_config()
         self.realtime_manifest = ""
         
     def validate_config(self):
         """Valida las variables de entorno requeridas"""
         if not self.openai_key:
-            raise EnvironmentError("OPENAI_KEY no está configurada en el .env o no es valida")
+            raise EnvironmentError("OPENAI_API_KEY no está configurada en el .env o no es valida")
         
         required_files = [MANIFEST_PATH, REALTIME_MANIFEST_PATH]
         for file in required_files:
@@ -81,7 +106,7 @@ def initialize_agency() -> Agency:
 @app.route('/')
 def index():
     """Endpoint principal para la interfaz web de ARGOS"""
-    return render_template('main_interface.html')
+    return render_template('chat.html')
 
 
 
@@ -95,7 +120,7 @@ def get_session():
             "model": "gpt-4o-mini-realtime-preview",
             "modalities": ["audio", "text"],
             "instructions": config._initialize_realtime_manifest(),
-            "voice" : "shimmer"
+            "voice" : "echo"
         }     
         # alloy ta bien
         # coral, meh masomenos
@@ -145,7 +170,7 @@ def process_query():
         context=context,
         neo4j_graph=graph
     )
-    
+
     # Paso 3: Construcción de prompt aumentado
     enriched_prompt = build_enriched_prompt(
         user_query=data['message'],
@@ -186,12 +211,13 @@ if __name__ == "__main__":
         # Inicializar agencia
         agency = initialize_agency()
         
-        # Configuración del servidor
+        #Configuración del servidor 
         app.run(
-            host=os.getenv("HOST", "0.0.0.0"),
-            port=int(os.getenv("PORT", 5000)),
-            debug=os.getenv("DEBUG_MODE", "false").lower() == "true"
+           host=os.getenv("HOST", "0.0.0.0"),
+           port=int(os.getenv("PORT", 5000)),
+           debug=os.getenv("DEBUG_MODE", "false").lower() == "true"
         )
+        #agency.demo_gradio(height=900)
         
     except Exception as e:
         logger.critical("Error crítico durante la inicialización: %s", str(e))

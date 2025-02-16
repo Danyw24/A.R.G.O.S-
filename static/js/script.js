@@ -38,7 +38,7 @@ async function handleInput() {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': 'Bearer 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'
+                'Authorization': 'Bearer API KEY' // implementar token de OpenAI
             },
             body: JSON.stringify({
                 model: "gpt-3.5-turbo",

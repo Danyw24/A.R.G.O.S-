@@ -9,6 +9,8 @@ gradio==5.13.1
 asyncssh==2.19.0
 neo4j==5.27.0
 sentence-transformers==3.4.1
+json_repair==0.35.0
+jsonschema==4.23.0
             
 
 
