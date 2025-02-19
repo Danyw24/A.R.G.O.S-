@@ -106,7 +106,7 @@ def initialize_agency() -> Agency:
 @app.route('/')
 def index():
     """Endpoint principal para la interfaz web de ARGOS"""
-    return render_template('chat.html')
+    return render_template('main.html')
 
 
 

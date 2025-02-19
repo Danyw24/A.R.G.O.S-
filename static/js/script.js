@@ -16,7 +16,7 @@ let animationId;
 
 // Configuración inicial
 canvas.width = window.innerWidth;
-canvas.height = 100;
+canvas.height = 150;
 
 // Event Listeners
 sendBtn.addEventListener('click', handleInput);
