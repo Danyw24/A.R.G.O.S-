@@ -63,7 +63,7 @@ def build_system_prompt(code_mode, creative_mode):
         return base_prompt 
     if code_mode:
         return """
-        Ingeniero Principal de Sistemas Autónomos - Modo Técnico
+        Ingoeniero Principal de Sistemas Autónmos - Modo Técnico
         
         Pipeline de Desarrollo:
         1. [Análisis] → Split Task → Subagentes:

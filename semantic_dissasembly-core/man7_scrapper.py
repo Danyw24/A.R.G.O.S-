@@ -173,6 +173,7 @@ def process_command(command, index):
             print("Index: %s" %  index)
             print(f"Procesado: {command}")
             print(f"Ejemplo: {man_data['example']}")
+            print(man_data)
             print("\n")
             
         return True
@@ -323,7 +324,7 @@ if __name__ == "__main__":
     try: 
         client = OpenAI(
         base_url="https://integrate.api.nvidia.com/v1",
-        api_key="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" # <-- NVIDIA API KEY
+        api_key="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" # <-- NVIDIA API KEY
         )
         scrape_man_page()
     except KeyboardInterrupt:

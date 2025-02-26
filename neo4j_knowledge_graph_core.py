@@ -713,17 +713,18 @@ if __name__ == "__main__":
     
         
         queries = [
-            "cómo instalar Java en Linux",]
+            "como instalar python3 en ubuntu 22.04",] 
         
         # crear funciones de busqueda y que devuelva las relaciones que se tiene con el concepto o termino  
 
-        print(crud.obtener_conceptos_relacionados("yum")) #[{'concepto': 'Búsqueda por tiempo'}, {'concepto': 'Búsqueda por tiempo de modificación'}, {'concepto': 'Búsqueda avanzada'}]
-        print(crud.buscar_equivalencias_semanticas("yum")) #[{'termino': 'python', 'similarity': 1.0}, {'termino': 'Python3', 'similarity': 0.8516451789961336}]
+        #print(crud.obtener_conceptos_relacionados("yum")) #[{'concepto': 'Búsqueda por tiempo'}, {'concepto': 'Búsqueda por tiempo de modificación'}, {'concepto': 'Búsqueda avanzada'}]
+        #print(crud.buscar_equivalencias_semanticas("yum")) #[{'termino': 'python', 'similarity': 1.0}, {'termino': 'Python3', 'similarity': 0.8516451789961336}]
 
-
-        #for i in queries:
-            #crear_concepto(client, str(i))
+        for i in queries:
+            crear_concepto(client, str(i))
         # actualizar relaciones del grafo
+
+
         #learning_engine.actualizar_relaciones_semanticas()
         #learning_engine.actualizar_confianza_relacion()
         
