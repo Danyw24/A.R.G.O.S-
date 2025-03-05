@@ -26,21 +26,20 @@ razonamiento estratégico profundo.
 import json
 import re
 import os
-import logging
 from pathlib import Path
 from typing import Dict, Any
 import requests
 from openai import OpenAI
+from datetime import datetime
+import traceback
+from jsonschema import validate
+from json_repair import repair_json
 
 
 from flask import Flask, jsonify, request, render_template, stream_with_context, Response
 from flask_cors import CORS
 from dotenv import load_dotenv
-from agency_swarm import Agency, set_openai_key
 from pydantic import ValidationError
-
-# Importaciones de los agentes d:
-from CEO import CEO
 
 
 # Configuración inicial
@@ -53,21 +52,38 @@ client = OpenAI(
     api_key=os.getenv("NVIDIA_API_KEY")
 )
 
-
 # Configuración de logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("ARGOS")
 
 # Constantes
 MANIFEST_PATH = Path(__file__).parent / "agency_manifest.md"
 REALTIME_MANIFEST_PATH = Path(__file__).parent / "realtime_manifest.md"
 
 
+class Log:
+  def status(self, msg):
+    print("\033[0;96m[~]\033[0m %s" % msg)
+  def success(self, msg):
+    print("\033[0;92m[+]\033[0m %s" % msg)
+  def error(self, msg):
+    print("\033[0;91m[!]\033[0m %s" % msg)
+  def debug(self, msg):
+    print("\033[0;37m[.]\033[0m %s" % msg)
+  def notice(self, msg):
+    print("\033[0;93m[?]\033[0m %s" % msg)
+  def info(self, msg):
+    print("\033[0;94m[*]\033[0m %s" % msg)
+  def enum(self, index, msg):
+    print("\033[0;94m<\033[0m%s\033[0;94m>\033[0m %s" % (index, msg))
+  def warning(self, msg):
+    print("\033[0;93m[!]\033[0m %s" % msg)
+
+log = Log()
+
 
 class AppConfig:
     """Configuración de la aplicación"""
     def __init__(self):
-        self.openai_key = os.getenv("OPENAI_API_KEY") #OPEN_AI API KEY 
+        self.openai_key = os.getenv("OPENAI_API_KEY")                                                                                                                                
         self.validate_config()
         self.realtime_manifest = ""
         
@@ -86,6 +102,34 @@ class AppConfig:
             return realtime_manifest_file.read()
 
 
+def request_deepseek(message: str) -> str:
+    full_response = []
+    
+    try:
+
+        messages = [{"role": "user", "content": message}]
+        completion = client.chat.completions.create(
+            model="deepseek-ai/deepseek-r1",  
+            messages=messages,
+            response_format={"type": "json_object"},
+            temperature=0.6,
+            top_p=0.7,
+            max_tokens=4096,
+            stream=True,
+            timeout=10
+        )
+
+        for chunk in completion:
+            if chunk.choices[0].delta.content:
+                chunk_content = chunk.choices[0].delta.content
+                full_response.append(chunk_content)
+                print(chunk_content, end="", flush=True)                                                                        
+
+        return "".join(full_response).strip()
+
+    except Exception as e:
+        print(f"\nError: {str(e)}")
+        return "Error procesando la solicitud"
 
 
 @app.route('/')
@@ -94,166 +138,36 @@ def index():
     return render_template('main.html')
 
 
-
-
-def format_response(message):
-    # Estructura requerida por el validador como JSON string
-    return json.dumps({
-        "thoughts": "Procesando solicitud",
-        "code": f"# {message}",  # Mensaje como comentario de Python
-        "end_code": True
-    }, ensure_ascii=False)
-
-
-
-
-def request_deepseek(message): 
-    #print(state_code["flag"], state_creative["flag"]) - Debugging :d
-    max_retries = 5  
-    base_delay = 1.5  
-    jitter = 1.5 
-    attempt = 0
-
-
-    while attempt < max_retries:
-        try:
-
- 
-            full_response = ""
-
-            messages = [{"role": "system", "content": " You are a helpful assistant."}]
-          
-            messages.append({"role": "user", "content": message})
-
-            completion = client.chat.completions.create(
-                model="deepseek-ai/deepseek-r1",  
-                messages=messages,
-                temperature=0.6,
-                top_p=0.7,
-                max_tokens=4096,
-                stream=True,
-                timeout=10
-            )
-
-            print("[DEBUG] Llamada a API exitosa, recibiendo stream...")
-
-            for chunk in completion:
-                if chunk.choices[0].delta.content:
-                    chunk_content = chunk.choices[0].delta.content
-                    full_response += chunk_content
-
-              
-                    reasoning_blocks = re.findall(r'<think>(.*?)</think>', full_response, re.DOTALL)
-                    clean_response = re.sub(r'<think>.*?</think>', '', full_response, flags=re.DOTALL).strip()
-
-       
-                    formatted_response = ""
-
-                    if reasoning_blocks:
-                        formatted_response += "<small>"
-                        formatted_response += "### Proceso analítico:\n"
-                        for i, block in enumerate(reasoning_blocks, 1):
-                            cleaned_block = block.strip()
-                            if len(cleaned_block) < 2:
-                                continue
-                            formatted_response += f"‣ *{cleaned_block}*\n\n"
-                        formatted_response += "</small>\n\n"
-
-                    formatted_response += f"**🔹Respuesta:**\n{clean_response}"
-
-                    yield history + [(message, formatted_response)]
-
-
-            final_html = format_response(full_response)
-            yield history + [(message, final_html)]
-
-            print("[DEBUG] Stream completado exitosamente")
-            break
-
-
-        except Exception as e:
-            error_str = str(e).lower()
-            status_code = None
-            retry_after = None
-
-            
-            if hasattr(e, 'status_code'):
-                status_code = e.status_code
-            elif hasattr(e, 'response'):
-                response = getattr(e, 'response', None)
-                if response:
-                    status_code = getattr(response, 'status_code', None)
-                    headers = getattr(response, 'headers', {})
-                    retry_after = headers.get('Retry-After')
-
-            # Determinar tipo el de error si es el 429 
-            is_429 = status_code == 429 or any(key in error_str for key in ["429", "too many requests", "rate limit"])
-            is_timeout = any(key in error_str for key in ["timeout", "timed out", "read operation"])
-
-            # Lógica de reintentos
-            if (is_429 or is_timeout) and attempt < max_retries - 1:
-                # Calculando tiempo de espera
-                if retry_after:
-                    try:
-                        wait_time = int(retry_after) + random.uniform(0, jitter)
-                    except ValueError:
-                        wait_time = (base_delay * (2 ** attempt)) + random.uniform(0, jitter)
-                else:
-                    wait_time = (base_delay * (2 ** attempt)) + random.uniform(0, jitter)
-                
-                print(f"[ADVERTENCIA] Error {'429' if is_429 else 'Timeout'}. Reintento {attempt+1}/{max_retries} en {wait_time:.1f}s")
-                time.sleep(wait_time)
-                attempt += 1
-                continue
-            else:
-              
-                error_msg = "🚨 Muchos intentos fallidos. Por favor intenta nuevamente más tarde." if attempt == max_retries -1 else f"⚠️ Error: {str(e)}"
-                yield history + [(message, error_msg)]
-                break
-
-
-
-
 @app.route('/api/chat', methods=['POST'])
 def chat_endpoint():
-    def generate():
-        try:
-            # Consumir el generador y formatear según el regex requerido
-            for chunk in request_deepseek("Hola"):
-                formatted_chunk = {
-                    "model": "custom-deepseek",
-                    "created_at": "2024-02-25T12:34:56Z",
-                    "message": {
-                        "role": "assistant",
-                        "content": f"Thoughts: Procesando chunk\nCode:\n```py\n# {chunk[1]}\n```<end_code>"
-                    },
-                    "done": False
-                }
-                yield f"data: {json.dumps(formatted_chunk)}\n\n"
-            
-            # Mensaje final de completado
-            final_response = {
-                "model": "custom-deepseek",
-                "created_at": "2024-02-25T12:34:56Z",
-                "message": {
-                    "role": "assistant",
-                    "content": "Thoughts: Proceso completado\nCode:\n```py\n# Respuesta final\n```<end_code>"
-                },
-                "done": True
-            }
-            yield f"data: {json.dumps(final_response)}\n\n"
-            
-        except Exception as e:
-            error_response = {
-                "error": str(e),
-                "done": True
-            }
-            yield f"data: {json.dumps(error_response)}\n\n"
+    try:
+        # Procesar solicitud
+        post_data = request.get_json()
 
-    return Response(stream_with_context(generate()), mimetype='text/event-stream')
+        response = request_deepseek(post_data['messages'][-1]['content']) 
+        response_data = {
+            "model": "deepseek-r1",
+            "created_at": int(datetime.now().timestamp()),
+            "message": {
+                "role": "assistant",
+                "content": json.dumps({ 
+                    "name": "final_answer",
+                    "arguments": {"answer": response}
+                })
+            },
+            "done": True
+        }
+
+        return jsonify(response_data)
+
+    except Exception as e:
+        log.error(e)
+        return jsonify({
+            "error": "Error interno",
+            "details": str(e)
+        }), 500
 
 
-# sesión RTC para API
 @app.route('/session', methods=['GET'])
 def get_session():
     try:
@@ -265,8 +179,6 @@ def get_session():
             "instructions": config._initialize_realtime_manifest(),
             "voice" : "echo"
         }     
-        # alloy ta bien
-        # coral, meh masomenos
         headers = {
             'Authorization': 'Bearer ' + config.openai_key,
             'Content-Type': 'application/json'
@@ -279,79 +191,12 @@ def get_session():
         return jsonify({'error': str(e)}), 500
 
 
-
-@app.route("/ask", methods=['POST'])
-def process_query():
-    """Procesa consultas a través de la agencia"""
-    try:
-        data: Dict[str, Any] = request.get_json()
-        # Verifica si existe el campo 'message'
-        if not data or 'message' not in data:
-            return jsonify({"error": "Formato de solicitud inválido"}), 400 
-            
-        response = agency.get_completion(data['message']) 
-        logger.info("Respuesta generada por la agencia: %s", response)
-        return jsonify({"response": response})
-        
-    except ValidationError as e:
-        logger.warning("Error de validación: %s", str(e))
-        return jsonify({"error": "Datos de entrada inválidos"}), 400
-    except Exception as e:
-        logger.error("Error procesando consulta: %s", str(e))
-        return jsonify({"error": "Error procesando la solicitud"}), 500
-
-
-# Integracion y mejora de argos realtime
-
-#def process_query():
-    # Paso 1: Obtener contexto histórico desde Redis
-    #context = get_conversation_context(user_id)
-    """
-    # Paso 2: Análisis simbólico inicial
-    symbolic_analysis = SymbolicProcessor.analyze(
-        query=data['message'],
-        context=context,
-        neo4j_graph=graph
-    )
-
-    # Paso 3: Construcción de prompt aumentado
-    enriched_prompt = build_enriched_prompt(
-        user_query=data['message'],
-        symbolic_data=symbolic_analysis,
-        manifest=config.realtime_manifest
-    )
-    
-    # Paso 4: Generación con deepseek-r1
-    raw_response = agency.get_completion(enriched_prompt)
-    
-    # Paso 5: Validación y grounding
-    validated_response = Validator.validate(
-        response=raw_response,
-        user_context=context,
-        neo4j_graph=graph
-    )
-    
-    # Paso 6: Actualización de memoria
-    update_knowledge_base(
-        user_query=data['message'],
-        gpt_response=raw_response,
-        final_response=validated_response,
-        neo4j_graph=graph,
-        redis_conn=redis
-    )
-    
-    return jsonify(validated_response)
-"""
-
-
 if __name__ == "__main__":
-
+    
     try:
         # Configuración inicial
         config = AppConfig()
-        set_openai_key(config.openai_key)
 
- 
         #Configuración del servidor 
         app.run(
            host=os.getenv("HOST", "0.0.0.0"),
@@ -361,5 +206,5 @@ if __name__ == "__main__":
         #agency.demo_gradio(height=900)
         
     except Exception as e:
-        logger.critical("Error crítico durante la inicialización: %s", str(e))
+        log.error("Error crítico durante la inicialización: %s", str(e))
         exit(1)
