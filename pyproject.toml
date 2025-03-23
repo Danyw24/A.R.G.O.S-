@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=65.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "argos-agi"
+version = "0.1.0"
+dependencies = [
+    "python-dotenv==1.0.1",
+    "requests==2.32.3",
+    "smolagents",
+    "Flask==3.1.0",
+    "Flask-Cors==5.0.0",
+    "gradio-client==1.6.0",
+    "pandas==2.2.3",
+    "gradio==5.13.1",
+    "asyncssh==2.19.0",
+    "neo4j==5.27.0",
+    "sentence-transformers==3.4.1",
+    "json_repair==0.35.0",
+    "jsonschema==4.23.0",
+    "openai >=1.0.0",
+    "pydantic >=2.0.0",
+    "tenacity >=8.2.0",
+    "browser-use==0.1.40",
+    "pyperclip==1.9.0",
+    "langchain-mistralai==0.2.4",
+    "langchain-google-genai==2.0.8",
+    "MainContentExtractor==0.0.4"
+]
+
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["argos*"]
+exclude = [
+    "data*", 
+    "config*", 
+    "static*", 
+    "templates*",
+    "tests*",
+    "docs*",
+    "bin*"
+]
