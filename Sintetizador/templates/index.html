@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sintetizador de Información</title>
+    <style>
+        /* Estilos básicos para centrar y mejorar la apariencia */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            background-color: #f4f4f4;
+        }
+
+        h1 {
+            color: #333;
+        }
+
+        textarea {
+            width: 80%;
+            height: 150px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            resize: none;
+        }
+
+        button {
+            margin-top: 10px;
+            padding: 10px 20px;
+            border: none;
+            background-color: #007bff;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
+        #respuesta {
+            margin-top: 20px;
+            padding: 15px;
+            width: 80%;
+            background-color: white;
+            border-radius: 5px;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Sintetizador de Información</h1>
+
+    <!-- Textarea para ingresar el texto -->
+    <textarea id="textoEntrada" placeholder="Escribe el texto aquí..."></textarea>
+
+    <!-- Botón para enviar el texto -->
+    <button id="procesarBtn" onclick="procesarTexto()">Procesar</button>
+
+    <!-- Sección para mostrar la respuesta -->
+    <div id="respuesta"></div>
+
+    <script>
+        async function procesarTexto() {
+            const boton = document.getElementById("procesarBtn");
+            const textoEntrada = document.getElementById("textoEntrada").value.trim();
+            const respuestaDiv = document.getElementById("respuesta");
+
+            // Validar que el usuario haya ingresado texto
+            if (textoEntrada === "") {
+                respuestaDiv.innerHTML = "<p style='color: red;'>Por favor, ingresa un texto.</p>";
+                return;
+            }
+
+            // Deshabilitar el botón mientras se procesa la solicitud
+            boton.disabled = true;
+            boton.innerText = "Procesando...";
+
+            try {
+                const response = await fetch("http://127.0.0.1:5000/procesar", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({ texto: textoEntrada })
+                });
+
+                // Manejo de errores HTTP
+                if (!response.ok) {
+                    throw new Error("Error en el procesamiento del texto.");
+                }
+
+                const data = await response.json();
+
+                // Mostrar la respuesta procesada
+                if (data.respuesta) {
+                    respuestaDiv.innerHTML = `<p><strong>Respuesta:</strong></p><p>${data.respuesta}</p>`;
+                } else {
+                    respuestaDiv.innerHTML = "<p style='color: red;'>Error al obtener la respuesta.</p>";
+                }
+
+            } catch (error) {
+                respuestaDiv.innerHTML = `<p style='color: red;'>Error: ${error.message}</p>`;
+            }
+
+            // Restaurar el botón después de la respuesta
+            boton.disabled = false;
+            boton.innerText = "Procesar";
+        }
+    </script>
+
+</body>
+</html>

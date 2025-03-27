@@ -1,0 +1,38 @@
+[
+    {
+        "fuentes": [
+            "El cambio climático está causando un aumento en las temperaturas globales debido a la emisión de gases de efecto invernadero.",
+            "Las emisiones de CO2 de la industria han incrementado un 20% en la última década, acelerando el calentamiento global.",
+            "Las energías renovables, como la solar y la eólica, pueden reducir la dependencia de los combustibles fósiles y mitigar el cambio climático.",
+            "Los científicos advierten que si no se toman medidas inmediatas, la temperatura media global podría aumentar en más de 2°C para 2050."
+        ],
+        "respuesta_sintetizada": "El cambio climático está empeorando debido al aumento de las emisiones de CO2. La industria ha incrementado su contaminación en un 20% en la última década. Sin embargo, las energías renovables ofrecen una alternativa viable para reducir la dependencia de los combustibles fósiles y mitigar estos efectos. Si no se toman medidas urgentes, las temperaturas globales podrían superar los 2°C para 2050."
+    },
+    {
+        "fuentes": [
+            "La inteligencia artificial está revolucionando la industria de la salud al permitir diagnósticos más rápidos y precisos.",
+            "Los algoritmos de aprendizaje automático pueden analizar imágenes médicas y detectar enfermedades con una precisión superior al 90%.",
+            "El acceso a grandes volúmenes de datos médicos y el avance en el procesamiento de información han acelerado el desarrollo de herramientas médicas basadas en IA.",
+            "Algunas preocupaciones éticas incluyen la privacidad de los pacientes y la necesidad de regulaciones claras en el uso de IA en la salud."
+        ],
+        "respuesta_sintetizada": "La inteligencia artificial está transformando la salud al mejorar el diagnóstico de enfermedades con algoritmos avanzados que pueden analizar imágenes médicas con más del 90% de precisión. Además, el acceso a grandes volúmenes de datos ha acelerado estos avances. Sin embargo, persisten preocupaciones éticas sobre la privacidad de los pacientes y la regulación del uso de IA en la medicina."
+    },
+    {
+        "fuentes": [
+            "El mercado de criptomonedas ha mostrado alta volatilidad en el último año, con subidas y bajadas abruptas en los precios de los activos digitales.",
+            "Bitcoin ha perdido un 15% de su valor en los últimos tres meses, reflejando la incertidumbre del mercado.",
+            "Los reguladores de distintos países están considerando nuevas leyes para controlar y regular el comercio de criptomonedas.",
+            "A pesar de la volatilidad, algunos analistas creen que las criptomonedas seguirán siendo una alternativa financiera relevante en el futuro."
+        ],
+        "respuesta_sintetizada": "El mercado de criptomonedas es altamente volátil, con Bitcoin perdiendo un 15% de su valor en los últimos tres meses. Esta volatilidad ha llevado a los reguladores a considerar nuevas leyes para controlar el mercado. Sin embargo, algunos expertos creen que las criptomonedas seguirán siendo una alternativa financiera importante a largo plazo."
+    },
+    {
+        "fuentes": [
+            "El avance de la robótica ha permitido la creación de robots cada vez más autónomos y capaces de realizar tareas complejas.",
+            "Las fábricas están implementando robots industriales para mejorar la eficiencia y reducir costos operativos.",
+            "La robótica en la medicina está avanzando con la creación de robots quirúrgicos que permiten intervenciones más precisas.",
+            "El desarrollo de robots humanoides plantea desafíos en términos de interacción social y aceptación por parte del público."
+        ],
+        "respuesta_sintetizada": "La robótica ha avanzado significativamente, permitiendo la creación de robots más autónomos y eficientes en diversas industrias. En la manufactura, están optimizando la producción, mientras que en la medicina, los robots quirúrgicos mejoran la precisión de las operaciones. No obstante, los robots humanoides presentan desafíos en términos de interacción y aceptación social."
+    }
+]
