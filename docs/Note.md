@@ -1,37 +1,4 @@
-cognitive_core/
-├── bayesian_engine/
-│   ├── rules/
-│   │   ├── logical_primitives.yaml (reglas base: AND, OR, XOR, etc.)
-│   │   └── domain_specific.yml (reglas compiladas por dominio)
-│   ├── rule_updater.py (actualización bayesiana usando Pyro/Stan)
-│   └── complexity_estimator.py (cálculo MDL con entropía condicional)
-├── adaptive_grammar/
-│   ├── grammar_parser/
-│   │   ├── tree_parser.ts (manipulación AST con Tree-sitter)
-│   │   └── grammar_compiler.py (generación de primitivas compiladas)
-│   ├── dynamic_grammars/
-│   │   ├── base_grammar.json (BNF inicial)
-│   │   └── user_grammars/ (gramáticas personalizadas por perfil)
-│   └── z3_integration.py (verificación formal con Z3/SymPy)
-├── symbolic_inference/
-│   ├── knowledge_graph/
-│   │   ├── neo4j_connector.py (gestión de grafos con Neo4j)
-│   │   └── rdf_utils.py (serialización OWL-Time/RDF)
-│   └── intent_classifier/
-│       ├── bert_intent.py (modelo BERT fine-tuned)
-│       └── bayesian_network.py (detección de patrones implícitos)
-├── context_manager/
-│   ├── redis_cache.py (caché de reglas frecuentes)
-│   ├── faiss_vectors.py (búsqueda semántica)
-│   └── temporal_context.py (gestión de estado multisesión)
-├── priority_scheduler/
-│   ├── airflow_dags/ (DAGs con priorización MDL)
-│   └── resource_optimizer.py (asignación dinámica de recursos)
-├── security/
-│   ├── semgrep_rules/ (plantillas de análisis estático)
-│   ├── qemu_sandbox.py (entornos aislados)
-│   └── spiffe_auth.py (autenticación Zero-Trust)
-└── cognitive_orchestrator.py (núcleo central de coordinación)
+
 Hakkûh
 project/
 ├── core/
@@ -186,3 +153,11 @@ print(search_tool("que es gato")) - puede servir para scrapear datos e informaci
 
 modificar el server de ollama para que sea compatible con smolagents  
 
+
+
+
+
+
+
+
+es un sistema automatizado de investigación profunda cuyo propósito es realizar una investigación exhaustiva sobre un tema proporcionado por el usuario, utilizando un modelo de lenguaje avanzado. El proceso comienza con la generación de un identificador único para cada tarea de investigación, el cual se utiliza para crear un directorio donde se almacenarán los resultados. El sistema permite configurar el uso de un navegador propio para ejecutar las búsquedas web necesarias. Este navegador puede ser configurado para adaptarse a las necesidades específicas de la búsqueda. La función principal, llamada deep_research, toma el tema de investigación, elabora un plan de búsqueda y utiliza agentes para ejecutar consultas simultáneas, recopilando así información relevante de múltiples fuentes. A lo largo de las iteraciones de búsqueda, el sistema limita el número de búsquedas para evitar ciclos infinitos y resume los resultados obtenidos. Una característica clave del programa es su capacidad para extraer y convertir el contenido de las páginas web en formato Markdown, facilitando así el procesamiento posterior y la generación de informes. Al completar las búsquedas, o en caso de error, se genera un informe final detallado utilizando la información recopilada, que se guarda en un archivo Markdown. Este informe está diseñado para ser directamente publicable, cumpliendo con requisitos de estructura, claridad y referencias adecuadas. El sistema también gestiona errores e imprevistos, garantizando que cualquier fallo quede documentado y que los resultados sean claros y precisos. En resumen, el programa automatiza la investigación profunda, integrando la generación de consultas, la recopilación de datos y la síntesis de información en un proceso coordinado y eficiente.
