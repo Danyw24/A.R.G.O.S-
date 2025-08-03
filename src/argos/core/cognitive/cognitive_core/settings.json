@@ -1,0 +1,140 @@
+[
+    {
+        "id": "asst_Y2dYZAHVElQQFYLXgmV86uon",
+        "created_at": 1740096306,
+        "description": null,
+        "instructions": "# Guia Operacional CEO\n\nCEO es un asistente AI especializado en proporcionar instrucciones detalladas a los agentes. No tiene la capacidad de generar ni ejecutar herramientas, su \u00fanica funci\u00f3n es gestionar y dirigir solicitudes a los agentes especializados seg\u00fan corresponda\n\n**Capacidades**\n-Gesti\u00f3n de procesos con agentes.\n\n-Evaluaci\u00f3n y clasificaci\u00f3n de preguntas para determinar si pueden ser respondidas directamente o deben ser derivadas a otro agente.\n\n\n**Proceso de Trabajo de `ssh_agent`**\n1. Determinar el Contexto y Manejo de Peticiones\n\nAntes de ejecutar cualquier comando, es fundamental analizar si la solicitud est\u00e1 relacionada con la gesti\u00f3n de c\u00f3digo o conexiones remotas.\n1.1 Manejo de Peticiones de C\u00f3digo y Conexiones Remotas\n\nSi la petici\u00f3n involucra c\u00f3digo o conexiones remotas, se utilizar\u00e1 ssh_agent. Este agente requiere los siguientes par\u00e1metros:\n\n    Direcci\u00f3n IP: Formato IPv4.\n\n    Usuario: Texto plano.\n\n    Contrase\u00f1a: Texto plano.\n\n    Comandos a ejecutar: Secuencia de instrucciones a realizar remotamente.\n\n2. Manejo de Scripts y Programas\n2.1 Depuraci\u00f3n del Programa (Requerido)\n\nAntes de ejecutar cualquier comando en el sistema remoto, es imprescindible depurar el c\u00f3digo que se desea ejecutar.\n2.2 Ejecuci\u00f3n de Comandos Remotos\n\nSe utilizar\u00e1 ssh_agent para ejecutar los comandos necesarios en la m\u00e1quina remota.\n2.3 Depuraci\u00f3n del Funcionamiento\n\nEl proceso de ejecuci\u00f3n debe ser monitoreado constantemente para asegurar su correcto funcionamiento.\n3. Manejo de Errores\n\nSi ocurre un error durante la ejecuci\u00f3n, el flujo de trabajo debe ser el siguiente:\n\n    Leer y analizar detalladamente el error.\n\n    Notificar al usuario (CEO del sistema) sobre el problema detectado.\n\n    Permitir que el usuario proporcione correcciones y ajustes en el c\u00f3digo.\n\n    Repetir el proceso de depuraci\u00f3n hasta lograr una ejecuci\u00f3n exitosa.\n\n4. Confirmaci\u00f3n de Correcto Funcionamiento\n\nSi el c\u00f3digo ejecutado funciona correctamente:\n\n    Informar al usuario sobre el correcto funcionamiento.\n\n    Si el usuario lo solicita, proporcionar la salida y el estado de ssh_agent de manera estructurada y clara.\n\n    Implementar mecanismos de automatizaci\u00f3n para la devoluci\u00f3n de informaci\u00f3n y estatus al usuario, minimizando la carga operativa manual.\n\nCiclo de Depuraci\u00f3n\n\nEl sistema sigue un flujo de trabajo iterativo donde el CEO es el \u00fanico responsable de proporcionar, revisar y ajustar el c\u00f3digo hasta que funcione correctamente en la m\u00e1quina remota. No obstante, se recomienda la implementaci\u00f3n de automatizaci\u00f3n en la detecci\u00f3n y notificaci\u00f3n de errores para optimizar el proceso.\n\n\n\n2. Manejo de Solicitudes de Agentes Espec\u00edficos\n\nSi se solicita un agente en espec\u00edfico, el flujo de trabajo debe seguir estos pasos:\n\nDeterminar los requisitos necesarios para que el agente pueda ejecutar la tarea.\n\nEnviar la solicitud al agente con los par\u00e1metros adecuados.\n\nRetornar siempre la respuesta del agente al usuario.\n\nInformar al usuario sobre el estado actual del agente y cualquier actualizaci\u00f3n relevante.\n \n\n**Objetivos Cr\u00edticos:**\n\nNota IMPORTANTE: el objetivo principal de CEO es determinar si la petici\u00f3n del usuario puede ser respondida \npor usted o debe ser dirigida a la agencia a un agente en especifico\n\n\n**\u00bfQue hacer cuando se solicita un agente en especifico?**\n- Cuando se solicita un agente en especifico la preguntaa debera ir con los siguientes parametros\n- Que requisitos necesita el agente\n- Siempre retornar la respuesta de el agente al usuario\n- Siempre informar el estado del agente al usuario\n\n\n",
+        "metadata": {},
+        "model": "gpt-4o",
+        "name": "CEO",
+        "object": "assistant",
+        "tools": [
+            {
+                "function": {
+                    "name": "CheckCurrentDir",
+                    "description": "This tool checks the current directory path.",
+                    "parameters": {
+                        "properties": {
+                            "chain_of_thought": {
+                                "description": "Please think step-by-step about what you need to do next, after checking current directory to solve the task.",
+                                "title": "Chain Of Thought",
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "chain_of_thought"
+                        ],
+                        "type": "object"
+                    },
+                    "strict": false
+                },
+                "type": "function"
+            },
+            {
+                "function": {
+                    "name": "ChangeFile",
+                    "description": "This tool changes specified lines in a file. Returns the new file contents with line numbers at the start of each line.",
+                    "parameters": {
+                        "$defs": {
+                            "LineChange": {
+                                "description": "Line changes to be made.",
+                                "properties": {
+                                    "line_number": {
+                                        "description": "Line number to change.",
+                                        "examples": [
+                                            1,
+                                            2,
+                                            3
+                                        ],
+                                        "title": "Line Number",
+                                        "type": "integer"
+                                    },
+                                    "new_line": {
+                                        "anyOf": [
+                                            {
+                                                "type": "string"
+                                            },
+                                            {
+                                                "type": "null"
+                                            }
+                                        ],
+                                        "default": null,
+                                        "description": "New line to replace the old line. Not required only for delete mode.",
+                                        "examples": [
+                                            "This is a new line"
+                                        ],
+                                        "title": "New Line"
+                                    },
+                                    "mode": {
+                                        "default": "replace",
+                                        "description": "Mode to use for the line change. \"replace\" replaces the line with the new line. \"insert\" inserts the new line at the specified line number, moving the previous line down. \"delete\" deletes the specified line number.",
+                                        "enum": [
+                                            "replace",
+                                            "insert",
+                                            "delete"
+                                        ],
+                                        "title": "Mode",
+                                        "type": "string"
+                                    }
+                                },
+                                "required": [
+                                    "line_number"
+                                ],
+                                "title": "LineChange",
+                                "type": "object"
+                            }
+                        },
+                        "properties": {
+                            "chain_of_thought": {
+                                "description": "Please think step-by-step about the required changes to the file in order to construct a fully functioning and correct program according to the requirements.",
+                                "title": "Chain Of Thought",
+                                "type": "string"
+                            },
+                            "file_path": {
+                                "description": "Path to the file with extension.",
+                                "examples": [
+                                    "./file.txt",
+                                    "./file.json",
+                                    "../../file.py"
+                                ],
+                                "title": "File Path",
+                                "type": "string"
+                            },
+                            "changes": {
+                                "description": "Line changes to be made to the file.",
+                                "examples": [
+                                    {
+                                        "line_number": 1,
+                                        "mode": "replace",
+                                        "new_line": "This is a new line"
+                                    }
+                                ],
+                                "items": {
+                                    "$ref": "#/$defs/LineChange"
+                                },
+                                "title": "Changes",
+                                "type": "array"
+                            }
+                        },
+                        "required": [
+                            "chain_of_thought",
+                            "changes",
+                            "file_path"
+                        ],
+                        "type": "object"
+                    },
+                    "strict": false
+                },
+                "type": "function"
+            }
+        ],
+        "response_format": "auto",
+        "temperature": 0.01,
+        "tool_resources": {
+            "code_interpreter": null,
+            "file_search": null
+        },
+        "top_p": 1.0,
+        "reasoning_effort": null
+    }
+]

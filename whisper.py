@@ -138,18 +138,26 @@ def load_silero_model() -> None:
             test_audio = audio_data[:512].reshape(1, -1).astype(np.float32)
         except:
             test_audio = np.random.randn(1, 512).astype(np.float32)
+<<<<<<< HEAD
                 
+=======
+        
+>>>>>>> d64c289917166e7c6d3c7ef24bbd2914870c7c02
         input_names = [inp.name for inp in vad_session.get_inputs()]
         if 'state' in input_names:
             state = np.zeros((2, 1, 128), dtype=np.float32)
             inputs = {'input': test_audio, 'state': state}
+<<<<<<< HEAD
             # Agregar sample rate si es requerido
             if 'sr' in input_names:
                 inputs['sr'] = np.array([16000], dtype=np.int64)
+=======
+>>>>>>> d64c289917166e7c6d3c7ef24bbd2914870c7c02
         elif 'h' in input_names and 'c' in input_names:
             h = np.zeros((1, 128), dtype=np.float32)
             c = np.zeros((1, 128), dtype=np.float32)
             inputs = {'input': test_audio, 'h': h, 'c': c}
+<<<<<<< HEAD
             # Agregar sample rate si es requerido
             if 'sr' in input_names:
                 inputs['sr'] = np.array([16000], dtype=np.int64)
@@ -158,6 +166,11 @@ def load_silero_model() -> None:
             # Agregar sample rate si es requerido
             if 'sr' in input_names:
                 inputs['sr'] = np.array([16000], dtype=np.int64)
+=======
+        else:
+            inputs = {'input': test_audio}
+        
+>>>>>>> d64c289917166e7c6d3c7ef24bbd2914870c7c02
         
         start_time = time.time()
         outputs = vad_session.run(None, inputs)
