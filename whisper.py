@@ -342,36 +342,36 @@ def handle_connection(conn, session, semph):
     # CONFIGURACIÓN DE PARÁMETROS OPTIMIZADOS
     # ==========================================
     
-    
     # Parámetros de frame optimizados para tiempo real
-    FRAME_DURATION = 0.064  # 32ms - más responsive que 50ms original
+    FRAME_DURATION = 0.064  # 64ms
     FRAME_SIZE = int(SAMPLE_RATE * FRAME_DURATION * BYTES_PER_SAMPLE)
     
-    
-    # Parámetros de calibración dinámica
-    CALIB_SEC = 1.3  # tiempo de calibración en segundos
+    # Parámetros de calibración mejorados
+    CALIB_SEC = 2.0  # Aumentado para mejor estadística
     CALIB_FRAMES = int(CALIB_SEC / FRAME_DURATION)
-    THRESHOLD_MULTIPLIER = 1.5  # multiplicador sobre ruido base
     
+    # NUEVOS PARÁMETROS DE UMBRAL BASADOS EN TU ANÁLISIS
+    # Basado en tus datos: silencio ~1400, voz ~1588
+    ADAPTIVE_THRESHOLD = True  # Usar umbral adaptativo
+    BASE_THRESHOLD_PERCENTILE = 75  # percentil para ruido base
+    VOICE_MULTIPLIER = 1.25  # Multiplicador más conservador
+    FALLBACK_THRESHOLD = 1650.0  # Umbral fijo de respaldo
     
-    # Parámetros de detección de habla optimizados
-    MIN_SPEECH_DURATION_MS = 250  # duración mínima de habla válida
-    MAX_SILENCE_DURATION_MS = 850  # máximo silencio antes de cortar
+    # Parámetros de detección de habla
+    MIN_SPEECH_DURATION_MS = 200  # Reducido para más sensibilidad
+    MAX_SILENCE_DURATION_MS = 700  # Reducido para cortes más rápidos
     MIN_SPEECH_FRAMES = int(MIN_SPEECH_DURATION_MS / (FRAME_DURATION * 1000))
     MAX_SILENCE_FRAMES = int(MAX_SILENCE_DURATION_MS / (FRAME_DURATION * 1000))
     
-    
-    # Parámetros de análisis VAD corregidos
-    RMS_SMOOTHING_WINDOW = 5  # ventana para suavizado temporal
-    # CORRECCIÓN: Silero VAD necesita chunks de al menos 512 samples para 16kHz
-    MIN_VAD_CHUNK_SIZE = 512  # mínimo para VAD
-    VAD_WINDOW_SIZE = 1024  # ventana VAD optimizada (era muy pequeña antes)
-    MIN_AUDIO_BYTES = int(SAMPLE_RATE * BYTES_PER_SAMPLE * 0.5)  # mínimo 500ms
+    # Parámetros de análisis VAD
+    RMS_SMOOTHING_WINDOW = 3  # Ventana más pequeña para mayor responsividad
+    MIN_VAD_CHUNK_SIZE = 512
+    VAD_WINDOW_SIZE = 1024
+    MIN_AUDIO_BYTES = int(SAMPLE_RATE * BYTES_PER_SAMPLE * 0.4)  # 400ms mínimo
     
     # ==========================================
     # INICIALIZACIÓN DE VARIABLES
     # ==========================================
-    
     
     # Buffers de audio
     buffer = b""
@@ -384,9 +384,8 @@ def handle_connection(conn, session, semph):
     processed_segments = 0
     frames_collected = 0
     
-    
-    # Estructuras para análisis temporal
-    rms_samples = deque(maxlen=CALIB_FRAMES)
+    # Estructuras para análisis temporal mejoradas
+    rms_samples = deque(maxlen=CALIB_FRAMES * 2)  # Buffer más grande
     rms_history = deque(maxlen=RMS_SMOOTHING_WINDOW)
     
     # Variables de umbral dinámico
@@ -394,81 +393,127 @@ def handle_connection(conn, session, semph):
     is_calibrated = False
     
     # ==========================================
-    # FASE 1: CALIBRACIÓN AUTOMÁTICA DE UMBRAL
+    # FASE 1: CALIBRACIÓN INTELIGENTE
     # ==========================================
     
-    print("🔧 Iniciando calibración automática del umbral RMS...")
+    print("🔧 Iniciando calibración inteligente del umbral RMS...")
     print(f"   ⏱️ Duración: {CALIB_SEC}s ({CALIB_FRAMES} frames)")
-    
+    print("   🤫 Mantén silencio durante la calibración...")
     
     try:
         # Recolección de muestras para calibración
+        start_time = time.time()
         while frames_collected < CALIB_FRAMES:
-            data = conn.recv(4096)
-            if not data:
-                print("❌ Error: conexión cerrada durante calibración")
-                return
-            
-            calibration_buffer += data
-            
-            
-            # Procesar frames de calibración disponibles
-            while len(calibration_buffer) >= FRAME_SIZE and frames_collected < CALIB_FRAMES:
-                frame = calibration_buffer[:FRAME_SIZE]
-                calibration_buffer = calibration_buffer[FRAME_SIZE:]
+            try:
+                data = conn.recv(8192)  # Buffer más grande
+                if not data:
+                    print("❌ Error: conexión cerrada durante calibración")
+                    return
                 
-                # Calcular RMS del frame de calibración
-                audio_np = np.frombuffer(frame, dtype=np.int16).astype(np.float32)
-                rms = np.sqrt(np.mean(audio_np**2))
-                if rms > 0:  # solo agregar muestras válidas
-                    rms_samples.append(rms)
-                    frames_collected += 1
+                calibration_buffer += data
+                
+                # Procesar frames disponibles
+                while len(calibration_buffer) >= FRAME_SIZE and frames_collected < CALIB_FRAMES:
+                    frame = calibration_buffer[:FRAME_SIZE]
+                    calibration_buffer = calibration_buffer[FRAME_SIZE:]
                     
-                    # Mostrar progreso cada 20 frames
-                    if frames_collected % 20 == 0:
+                    # Calcular RMS con mejor precisión
+                    try:
+                        audio_np = np.frombuffer(frame, dtype=np.int16).astype(np.float32)
+                        if len(audio_np) > 0:
+                            rms = np.sqrt(np.mean(audio_np**2))
+                            if rms > 50:  # Filtrar ruido eléctrico muy bajo
+                                rms_samples.append(rms)
+                                frames_collected += 1
+                    except Exception as e:
+                        print(f"   ⚠️ Error procesando frame: {e}")
+                        continue
+                    
+                    # Mostrar progreso cada 10 frames
+                    if frames_collected % 10 == 0 and frames_collected > 0:
                         progress = (frames_collected / CALIB_FRAMES) * 100
-                        print(f"   📊 Progreso calibración: {progress:.1f}%")
+                        elapsed = time.time() - start_time
+                        print(f"   📊 Progreso: {progress:.1f}% ({elapsed:.1f}s)")
+                        
+            except Exception as e:
+                print(f"   ⚠️ Error en calibración: {e}")
+                continue
         
+        # ==========================================
+        # ANÁLISIS ESTADÍSTICO MEJORADO
+        # ==========================================
         
-        # Calcular umbral dinámico usando estadísticas robustas
-        if len(rms_samples) >= 10:
+        if len(rms_samples) >= 15:
             rms_array = np.array(rms_samples)
-            base_noise = np.percentile(rms_array, 50)  # percentil 75 más robusto
-            mean_noise = np.mean(rms_array)
             
-            SILENCE_THRESHOLD = float(base_noise * THRESHOLD_MULTIPLIER)
+            # Calcular múltiples estadísticas
+            mean_rms = np.mean(rms_array)
+            std_rms = np.std(rms_array)
+            median_rms = np.median(rms_array)
+            p75_rms = np.percentile(rms_array, BASE_THRESHOLD_PERCENTILE)
+            p95_rms = np.percentile(rms_array, 95)
+            
+            # MÉTODO 1: Umbral adaptativo basado en tu análisis
+            if ADAPTIVE_THRESHOLD:
+                # Usar percentil 75 como base (más robusto que la media)
+                base_noise = p75_rms
+                adaptive_threshold = base_noise * VOICE_MULTIPLIER
+                
+                # Verificar que esté en rango razonable basado en tus datos
+                if adaptive_threshold < 1500:  # Muy bajo
+                    adaptive_threshold = 1650
+                elif adaptive_threshold > 2200:  # Muy alto
+                    adaptive_threshold = 1800
+                
+                SILENCE_THRESHOLD = float(adaptive_threshold)
+            else:
+                SILENCE_THRESHOLD = FALLBACK_THRESHOLD
+            
             is_calibrated = True
             
-            print(f"[=] Calibración completada:")
-            print(f"   - RMS medio: {mean_noise:.2f}")
-            print(f"   - RMS percentil 75: {base_noise:.2f}")
-            print(f"   - Umbral dinámico: {SILENCE_THRESHOLD:.2f}")
+            # Mostrar análisis detallado
+            print(f"\n[✅] Calibración completada exitosamente:")
+            print(f"   📊 Estadísticas del ruido ambiente:")
+            print(f"      - Media: {mean_rms:.1f}")
+            print(f"      - Desv. std: {std_rms:.1f}")
+            print(f"      - Mediana: {median_rms:.1f}")
+            print(f"      - Percentil 75: {p75_rms:.1f}")
+            print(f"      - Percentil 95: {p95_rms:.1f}")
+            print(f"   🎯 Umbral seleccionado: {SILENCE_THRESHOLD:.1f}")
+            print(f"   🔍 Método: {'Adaptativo' if ADAPTIVE_THRESHOLD else 'Fijo'}")
+            
+            # Clasificar el ambiente
+            if mean_rms < 1300:
+                ambiente = "🔇 Muy silencioso"
+            elif mean_rms < 1450:
+                ambiente = "🤫 Silencioso normal"
+            elif mean_rms < 1600:
+                ambiente = "🔊 Ruidoso"
+            else:
+                ambiente = "📢 Muy ruidoso"
+            print(f"   🏠 Ambiente detectado: {ambiente}")
+            
         else:
             print("❌ Error: insuficientes muestras para calibración")
-            return
-    
+            print(f"   Solo se recolectaron {len(rms_samples)} muestras")
+            # Usar umbral de respaldo basado en tu análisis
+            SILENCE_THRESHOLD = FALLBACK_THRESHOLD
+            is_calibrated = True
+            print(f"   🔄 Usando umbral de respaldo: {SILENCE_THRESHOLD}")
     
     except Exception as e:
         print(f"❌ Error crítico en calibración: {e}")
-        return
+        SILENCE_THRESHOLD = FALLBACK_THRESHOLD
+        is_calibrated = True
+        print(f"   🔄 Usando umbral de emergencia: {SILENCE_THRESHOLD}")
+
+    print(f"\n[🎤] Iniciando detección de voz optimizada...")
+    print(f"   🎯 Umbral activo: {SILENCE_THRESHOLD:.1f}")
+    print(f"   ⏱️ Min habla: {MIN_SPEECH_DURATION_MS}ms")
+    print(f"   🔇 Max silencio: {MAX_SILENCE_DURATION_MS}ms")
+    print(f"   📊 Suavizado RMS: {RMS_SMOOTHING_WINDOW} frames")
     
-    
-    # ==========================================
-    # FASE 2: DETECCIÓN EN TIEMPO REAL
-    # ==========================================
-    
-    
-    # Inicializar buffer con datos sobrantes de calibración
-    buffer = calibration_buffer
-    calibration_buffer = None  # liberar memoria
-    
-    
-    print(f"[=] Iniciando detección de voz en tiempo real...")
-    print(f"   - Umbral: {SILENCE_THRESHOLD:.2f}")
-    print(f"   - Min habla: {MIN_SPEECH_DURATION_MS}ms")
-    print(f"   - Max silencio: {MAX_SILENCE_DURATION_MS}ms")
-    
-    
+
     try:
         while True:
             data = conn.recv(4096)
