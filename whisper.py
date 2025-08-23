@@ -336,7 +336,6 @@ def get_speech_timestamps_onnx(wav, sample_rate=16000, threshold=0.5,
     return speech_timestamps
 
 
-
 def handle_connection(conn, session, semph):
     # ==========================================
     # CONFIGURACIÓN DE PARÁMETROS OPTIMIZADOS
@@ -353,9 +352,9 @@ def handle_connection(conn, session, semph):
     # NUEVOS PARÁMETROS DE UMBRAL BASADOS EN TU ANÁLISIS
     # Basado en tus datos: silencio ~1400, voz ~1588
     ADAPTIVE_THRESHOLD = True  # Usar umbral adaptativo
-    BASE_THRESHOLD_PERCENTILE = 75  # percentil para ruido base
-    VOICE_MULTIPLIER = 1.25  # Multiplicador más conservador
-    FALLBACK_THRESHOLD = 1650.0  # Umbral fijo de respaldo
+    BASE_THRESHOLD_PERCENTILE = 50  # percentil mediano para máxima sensibilidad
+    VOICE_MULTIPLIER = 1.15  # Multiplicador más bajo para detectar voz cercana
+    FALLBACK_THRESHOLD = 1600.0  # Umbral fijo más bajo
     
     # Parámetros de detección de habla
     MIN_SPEECH_DURATION_MS = 200  # Reducido para más sensibilidad
@@ -453,17 +452,18 @@ def handle_connection(conn, session, semph):
             p75_rms = np.percentile(rms_array, BASE_THRESHOLD_PERCENTILE)
             p95_rms = np.percentile(rms_array, 95)
             
-            # MÉTODO 1: Umbral adaptativo basado en tu análisis
+            # MÉTODO 1: Umbral adaptativo con percentil 50 (máxima sensibilidad)
             if ADAPTIVE_THRESHOLD:
-                # Usar percentil 75 como base (más robusto que la media)
-                base_noise = p75_rms
+                # Usar mediana (percentil 50) como base más sensible
+                p50_rms = np.percentile(rms_array, BASE_THRESHOLD_PERCENTILE)
+                base_noise = p50_rms  # mediana del ruido
                 adaptive_threshold = base_noise * VOICE_MULTIPLIER
                 
-                # Verificar que esté en rango razonable basado en tus datos
-                if adaptive_threshold < 1500:  # Muy bajo
-                    adaptive_threshold = 1650
-                elif adaptive_threshold > 2200:  # Muy alto
-                    adaptive_threshold = 1800
+                # Verificar que esté en rango óptimo para tu setup
+                if adaptive_threshold < 1400:  # Muy bajo - ajustar mínimo
+                    adaptive_threshold = 1450
+                elif adaptive_threshold > 1800:  # Muy alto - limitar máximo
+                    adaptive_threshold = 1700
                 
                 SILENCE_THRESHOLD = float(adaptive_threshold)
             else:
@@ -477,21 +477,32 @@ def handle_connection(conn, session, semph):
             print(f"      - Media: {mean_rms:.1f}")
             print(f"      - Desv. std: {std_rms:.1f}")
             print(f"      - Mediana: {median_rms:.1f}")
+            print(f"      - Percentil 50 (mediana): {p50_rms:.1f}")
             print(f"      - Percentil 75: {p75_rms:.1f}")
             print(f"      - Percentil 95: {p95_rms:.1f}")
             print(f"   🎯 Umbral seleccionado: {SILENCE_THRESHOLD:.1f}")
-            print(f"   🔍 Método: {'Adaptativo' if ADAPTIVE_THRESHOLD else 'Fijo'}")
+            print(f"   🔍 Método: {'Adaptativo (percentil 50)' if ADAPTIVE_THRESHOLD else 'Fijo'}")
             
-            # Clasificar el ambiente
-            if mean_rms < 1300:
+            # Clasificar el ambiente con rangos ajustados
+            if mean_rms < 1350:
                 ambiente = "🔇 Muy silencioso"
-            elif mean_rms < 1450:
-                ambiente = "🤫 Silencioso normal"
+            elif mean_rms < 1480:
+                ambiente = "🤫 Silencioso normal"  
             elif mean_rms < 1600:
-                ambiente = "🔊 Ruidoso"
+                ambiente = "🔊 Ambiente normal"
             else:
-                ambiente = "📢 Muy ruidoso"
+                ambiente = "📢 Ruidoso"
             print(f"   🏠 Ambiente detectado: {ambiente}")
+            
+            # Mostrar predicción de sensibilidad
+            sensibilidad_esperada = SILENCE_THRESHOLD - mean_rms
+            if sensibilidad_esperada > 300:
+                nivel = "🟢 Alta sensibilidad"
+            elif sensibilidad_esperada > 200:
+                nivel = "🟡 Sensibilidad media"
+            else:
+                nivel = "🔴 Baja sensibilidad"
+            print(f"   📈 Margen de detección: {sensibilidad_esperada:.1f} ({nivel})")
             
         else:
             print("❌ Error: insuficientes muestras para calibración")
@@ -506,7 +517,11 @@ def handle_connection(conn, session, semph):
         SILENCE_THRESHOLD = FALLBACK_THRESHOLD
         is_calibrated = True
         print(f"   🔄 Usando umbral de emergencia: {SILENCE_THRESHOLD}")
-
+    
+    # ==========================================
+    # FASE 2: DETECCIÓN DE VOZ MEJORADA
+    # ==========================================
+    
     print(f"\n[🎤] Iniciando detección de voz optimizada...")
     print(f"   🎯 Umbral activo: {SILENCE_THRESHOLD:.1f}")
     print(f"   ⏱️ Min habla: {MIN_SPEECH_DURATION_MS}ms")
@@ -675,7 +690,7 @@ def start_arecord():
     try:
         pipeline = (
             "arecord -f S16_LE -c1 -r 16000 -t raw -D plughw:3,0 | "
-            "sox -t raw -r 16000 -e signed -b 16 -c 1 - -t raw - gain 15 | "
+            "sox -t raw -r 16000 -e signed -b 16 -c 1 - -t raw - gain 18 | "
             "nc 127.0.0.1 4300"
         )
         return subprocess.Popen(pipeline, shell=True)
@@ -689,6 +704,7 @@ def start_arecord():
             return subprocess.Popen([
                 "arecord -f S16_LE -c1 -r 16000 -t raw -D default | nc 127.0.0.1 4300"
             ], shell=True)
+            
             
 def send_to_baseten(wav_data):
     """
