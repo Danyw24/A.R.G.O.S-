@@ -335,6 +335,8 @@ def get_speech_timestamps_onnx(wav, sample_rate=16000, threshold=0.5,
     
     return speech_timestamps
 
+
+
 def handle_connection(conn, session, semph):
     # ==========================================
     # CONFIGURACIÓN DE PARÁMETROS OPTIMIZADOS
@@ -352,8 +354,8 @@ def handle_connection(conn, session, semph):
     # Basado en tus datos: silencio ~1400, voz ~1588
     ADAPTIVE_THRESHOLD = True  # Usar umbral adaptativo
     BASE_THRESHOLD_PERCENTILE = 50  # percentil mediano para máxima sensibilidad
-    VOICE_MULTIPLIER = 1.25  # Multiplicador balanceado basado en tu análisis
-    FALLBACK_THRESHOLD = 1794.0  # Umbral balanceado de tu análisis
+    VOICE_MULTIPLIER = 1.3  # Subido ligeramente para filtrar ruidos
+    FALLBACK_THRESHOLD = 1850.0  # Umbral un poco más alto
     
     # Parámetros de detección de habla
     MIN_SPEECH_DURATION_MS = 200  # Reducido para más sensibilidad
@@ -458,12 +460,12 @@ def handle_connection(conn, session, semph):
                 base_noise = p50_rms  # mediana del ruido
                 adaptive_threshold = base_noise * VOICE_MULTIPLIER
                 
-                # Verificar que esté en rango óptimo basado en tu análisis real
-                if adaptive_threshold < 1500:  # Muy bajo - usar sensible
-                    adaptive_threshold = 1550
-                elif adaptive_threshold > 2200:  # Muy alto - usar conservador  
-                    adaptive_threshold = 2100
-                # Si está entre 1500-2200, usar el calculado
+                # Verificar rangos optimizados para filtrar ruidos
+                if adaptive_threshold < 1600:  # Muy bajo - ajustar mínimo
+                    adaptive_threshold = 1700
+                elif adaptive_threshold > 2300:  # Muy alto - limitar máximo  
+                    adaptive_threshold = 2200
+                # Rango ideal: 1600-2300
                 
                 SILENCE_THRESHOLD = float(adaptive_threshold)
             else:
@@ -507,8 +509,8 @@ def handle_connection(conn, session, semph):
             print(f"   📈 Margen de detección: {sensibilidad_esperada:.1f} ({nivel})")
             
             # Comparar con tus recomendaciones
-            print(f"   💡 Comparación con tu análisis:")
-            print(f"      🔴 Sensible: 1454 | 🟡 Balanceado: 1794 | 🟢 Conservador: 2176")
+            print(f"   💡 Comparación con análisis:")
+            print(f"      🔴 Sensible: 1454 | 🟡 Balanceado: 1794 | 🟢 Óptimo: ~2100+")
             
         else:
             print("❌ Error: insuficientes muestras para calibración")
@@ -533,7 +535,6 @@ def handle_connection(conn, session, semph):
     print(f"   ⏱️ Min habla: {MIN_SPEECH_DURATION_MS}ms")
     print(f"   🔇 Max silencio: {MAX_SILENCE_DURATION_MS}ms")
     print(f"   📊 Suavizado RMS: {RMS_SMOOTHING_WINDOW} frames")
-    
     
     try:
         while True:
