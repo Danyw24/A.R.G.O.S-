@@ -633,8 +633,19 @@ def handle_connection(conn, session, semph):
 
 
 def start_arecord():
-    return subprocess.Popen(["arecord -f S16_LE -c1 -r 16000 -t raw -D default | nc 127.0.0.1 4300 "], shell=True)
-
+    try:
+        pipeline = (
+            "arecord -f S16_LE -c1 -r 16000 -t raw -D default | "
+            "sox -t raw -r 16000 -e signed -b 16 -c 1 - -t raw - gain 15 | "
+            "nc 127.0.0.1 4300"
+        )
+        return subprocess.Popen([pipeline], shell=True)
+    except Exception as e:
+        print(f"Error iniciando arecord con amplificación: {e}")
+        # Fallback sin amplificación
+        return subprocess.Popen([
+            "arecord -f S16_LE -c1 -r 16000 -t raw -D default | nc 127.0.0.1 4300"
+        ], shell=True)
 
 
 def send_to_baseten(wav_data):
