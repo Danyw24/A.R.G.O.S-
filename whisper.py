@@ -104,19 +104,14 @@ def extract_onnx_model():
     
     return str(onnx_path), vad_utils
 
-
-
-
 def load_silero_model() -> None:
     """Carga el modelo usando ONNX Runtime para máximo rendimiento"""
     global vad_session, vad_utils
     import time
     import librosa
     
-    
     # Extraer modelo ONNX si no existe
     onnx_path, vad_utils = extract_onnx_model()
-    
     
     sess_options = ort.SessionOptions()
     sess_options.intra_op_num_threads = 1
@@ -124,14 +119,11 @@ def load_silero_model() -> None:
     sess_options.execution_mode = ort.ExecutionMode.ORT_SEQUENTIAL
     sess_options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
     
-    
     providers = [('CPUExecutionProvider', {'intra_op_num_threads': 1, 'inter_op_num_threads': 1})]
-    
     
     try:
         vad_session = ort.InferenceSession(onnx_path, sess_options=sess_options, providers=providers)
         print("[+] Modelo ONNX cargado con ONNX Runtime")
-        
         
         try:
             audio_data, _ = librosa.load("temp_16000.wav", sr=16000, mono=True)
@@ -143,7 +135,6 @@ def load_silero_model() -> None:
         if 'state' in input_names:
             state = np.zeros((2, 1, 128), dtype=np.float32)
             inputs = {'input': test_audio, 'state': state}
-
             # Agregar sample rate si es requerido
             if 'sr' in input_names:
                 inputs['sr'] = np.array([16000], dtype=np.int64)
@@ -152,7 +143,6 @@ def load_silero_model() -> None:
             h = np.zeros((1, 128), dtype=np.float32)
             c = np.zeros((1, 128), dtype=np.float32)
             inputs = {'input': test_audio, 'h': h, 'c': c}
-
             # Agregar sample rate si es requerido
             if 'sr' in input_names:
                 inputs['sr'] = np.array([16000], dtype=np.int64)
@@ -168,11 +158,9 @@ def load_silero_model() -> None:
         
         print(f"[+] Test inicial: {test_time:.1f}ms | VAD: {outputs[0][0][0]:.3f}")
         
-        
     except Exception as e:
         print(f"❌ Error cargando modelo ONNX: {e}")
         raise
-    
     
     # Desempacar utils
     get_speech_timestamps, save_audio, read_audio, VADIterator, collect_chunks = vad_utils
@@ -183,7 +171,6 @@ def load_silero_model() -> None:
         'VADIterator': VADIterator,
         'collect_chunks': collect_chunks
     })
-
 
 
 
@@ -209,19 +196,28 @@ def vad_inference_fast(audio_chunk, sample_rate=16000, state=None):
         if 'state' in input_names:
             # Estado combinado
             if state is None:
-                state = np.zeros((2, 1, 128), dtype=np.float32)  # [h, c] para LSTM
+                state = np.zeros((2, 1, 128), dtype=np.float32)
             inputs = {'input': audio_chunk, 'state': state}
+            # Agregar sample rate si es requerido
+            if 'sr' in input_names:
+                inputs['sr'] = np.array([16000], dtype=np.int64)
         elif 'h' in input_names and 'c' in input_names:
             # Estados separados - CORRIGIENDO DIMENSIONES
             if state is None:
-                h = np.zeros((1, 128), dtype=np.float32)  # Sin dimensión extra
-                c = np.zeros((1, 128), dtype=np.float32)  # Sin dimensión extra
+                h = np.zeros((1, 128), dtype=np.float32)
+                c = np.zeros((1, 128), dtype=np.float32)
             else:
-                h, c = state[0], state[1]  # Usar sin indexing extra
+                h, c = state[0], state[1]
             inputs = {'input': audio_chunk, 'h': h, 'c': c}
+            # Agregar sample rate si es requerido
+            if 'sr' in input_names:
+                inputs['sr'] = np.array([16000], dtype=np.int64)
         else:
             # Solo audio
             inputs = {'input': audio_chunk}
+            # Agregar sample rate si es requerido
+            if 'sr' in input_names:
+                inputs['sr'] = np.array([16000], dtype=np.int64)
         
         # Inferencia directa con ONNX Runtime
         outputs = vad_session.run(None, inputs)
@@ -233,9 +229,8 @@ def vad_inference_fast(audio_chunk, sample_rate=16000, state=None):
         return speech_prob, new_state
         
     except Exception as e:
-        print(f"❌ Error en inferencia VAD: {e}")
+        print(f"❌ Error en inferencia VAD fast: {e}")
         return 0.0, state
-
 
 
 def get_speech_timestamps_onnx(wav, sample_rate=16000, threshold=0.5, 
@@ -356,7 +351,7 @@ def handle_connection(conn, session, semph):
     # Parámetros de calibración dinámica
     CALIB_SEC = 1.3  # tiempo de calibración en segundos
     CALIB_FRAMES = int(CALIB_SEC / FRAME_DURATION)
-    THRESHOLD_MULTIPLIER = 2.2  # multiplicador sobre ruido base
+    THRESHOLD_MULTIPLIER = 1.5  # multiplicador sobre ruido base
     
     
     # Parámetros de detección de habla optimizados
@@ -438,7 +433,7 @@ def handle_connection(conn, session, semph):
         # Calcular umbral dinámico usando estadísticas robustas
         if len(rms_samples) >= 10:
             rms_array = np.array(rms_samples)
-            base_noise = np.percentile(rms_array, 75)  # percentil 75 más robusto
+            base_noise = np.percentile(rms_array, 50)  # percentil 75 más robusto
             mean_noise = np.mean(rms_array)
             
             SILENCE_THRESHOLD = float(base_noise * THRESHOLD_MULTIPLIER)
@@ -628,7 +623,7 @@ def handle_connection(conn, session, semph):
             conn.close()
             print("🔌 Conexión cerrada correctamente")
         except:
-            print("❌ Error cerrando conexión")
+            print("❌ Error cerrando conexión") 
 
 
 def start_arecord():
