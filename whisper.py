@@ -375,7 +375,7 @@ def handle_connection(conn, session, semph):
     buffer = b""
     speech_buffer = b""
     calibration_buffer = b""
-    
+    processed_segments = 0
     silence_frames_after_speech = 0
     speech_frame_count = 0
     frames_collected = 0
@@ -485,14 +485,11 @@ def handle_connection(conn, session, semph):
                 
                 audio_np = np.frombuffer(frame, dtype=np.int16).astype(np.float32)
                 rms = np.sqrt(np.mean(audio_np**2)) if len(audio_np) > 0 else 0
-                
-                rms_history.append(rms)
-                smoothed_rms = float(np.mean(rms_history))
-                
+            
                 # --- MEJORA: Lógica de estados para detección ---
                 if is_speaking:
                     # --- ESTADO: YA ESTAMOS GRABANDO VOZ ---
-                    if smoothed_rms > SILENCE_THRESHOLD:
+                    if rms > SILENCE_THRESHOLD:
                         # La voz continúa, seguimos grabando
                         speech_buffer += frame
                         speech_frame_count += 1
@@ -540,7 +537,7 @@ def handle_connection(conn, session, semph):
                             potential_speech_frames = 0
                 else:
                     # --- ESTADO: ESPERANDO VOZ ---
-                    if smoothed_rms > SILENCE_THRESHOLD:
+                    if rms > SILENCE_THRESHOLD:
                         # Umbral superado, posible inicio de voz
                         potential_speech_frames += 1
                         speech_buffer += frame # Guardar temporalmente por si se confirma
@@ -573,7 +570,7 @@ def start_arecord():
             " python audio_filter.py | "
             "nc 127.0.0.1 4300"
         )
-        print("[+]Usando fi")
+        print("[+]Usando filtro")
         return subprocess.Popen(pipeline, shell=True)
     except Exception as e:
         print(f"Error iniciando arecord con amplificación: {e}")
