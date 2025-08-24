@@ -335,8 +335,6 @@ def get_speech_timestamps_onnx(wav, sample_rate=16000, threshold=0.5,
     
     return speech_timestamps
 
-
-
 def handle_connection(conn, session, semph):
     # ==========================================
     # CONFIGURACIÓN DE PARÁMETROS OPTIMIZADOS
@@ -351,10 +349,8 @@ def handle_connection(conn, session, semph):
     CALIB_FRAMES = int(CALIB_SEC / FRAME_DURATION)
     
     # --- MEJORA: Parámetros de Umbral Adaptativo Simple ---
-    # Este es el pequeño valor que se suma al ruido promedio para que el umbral
-    # sea un poco más conservador y no confunda ruido con voz.
     NOISE_OFFSET = 250.0 
-    FALLBACK_THRESHOLD = 1850.0 # Umbral a usar si la calibración falla
+    FALLBACK_THRESHOLD = 1850.0
     
     # Parámetros de detección de habla (VAD)
     MIN_SPEECH_DURATION_MS = 200
@@ -363,10 +359,15 @@ def handle_connection(conn, session, semph):
     MAX_SILENCE_FRAMES = int(MAX_SILENCE_DURATION_MS / (FRAME_DURATION * 1000))
     
     # Confirmación de voz para evitar falsos positivos
-    SPEECH_CONFIRMATION_FRAMES = 2 # Requiere 2 frames seguidos para iniciar la detección
+    SPEECH_CONFIRMATION_FRAMES = 2
     
     # Parámetros de análisis VAD
     MIN_AUDIO_BYTES = int(SAMPLE_RATE * BYTES_PER_SAMPLE * 0.4)
+    
+    # --- NUEVOS PARÁMETROS PARA SILERO VAD ---
+    VAD_THRESHOLD = 0.6  # Umbral de confianza para Silero VAD (0.0-1.0)
+    MIN_VAD_SPEECH_DURATION_MS = 150  # Duración mínima de segmento confirmado por VAD
+    VAD_PADDING_MS = 50  # Padding antes/después de segmentos VAD
 
     # ==========================================
     # INICIALIZACIÓN DE VARIABLES
@@ -389,7 +390,7 @@ def handle_connection(conn, session, semph):
     
     SILENCE_THRESHOLD = None
     is_calibrated = False
-    
+
     # ==========================================
     # FASE 1: CALIBRACIÓN ADAPTATIVA
     # ==========================================
@@ -400,7 +401,6 @@ def handle_connection(conn, session, semph):
     
     try:
         start_time = time.time()
-        # 1. Recolección de muestras de ruido ambiente
         while frames_collected < CALIB_FRAMES:
             try:
                 data = conn.recv(8192)
@@ -417,9 +417,8 @@ def handle_connection(conn, session, semph):
                     try:
                         audio_np = np.frombuffer(frame, dtype=np.int16)
                         if len(audio_np) > 0:
-                            # Calcula la energía (RMS) del frame y la guarda
                             rms = np.sqrt(np.mean(np.square(audio_np.astype(np.float32))))
-                            if rms > 50:  # Ignora frames de silencio casi absoluto
+                            if rms > 50:
                                 rms_samples.append(rms)
                             frames_collected += 1
                     except Exception as e:
@@ -427,49 +426,40 @@ def handle_connection(conn, session, semph):
                         continue
             
             except BlockingIOError:
-                # No hay datos disponibles, esperar un poco
                 time.sleep(0.01)
                 continue
             except Exception as e:
                 print(f"   ⚠️ Error de red durante calibración: {e}")
                 break
 
-        # 2. Cálculo del umbral basado en el ruido medido
-        if len(rms_samples) >= 15: # Se necesita un mínimo de muestras para ser fiable
-            
-            # --- Lógica de umbral adaptativo ---
-            # Se calcula el ruido promedio del ambiente
+        # Cálculo del umbral
+        if len(rms_samples) >= 15:
             average_noise = np.mean(rms_samples)
-            
-            # El umbral es el ruido promedio + un pequeño margen conservador
             SILENCE_THRESHOLD = average_noise + NOISE_OFFSET
-            
             is_calibrated = True
             
             print(f"\n[✅] Calibración completada:")
             print(f"   🔊 Ruido ambiente promedio (RMS): {average_noise:.1f}")
-            print(f"   ➕ Margen de seguridad (Offset): {NOISE_OFFSET:.1f}")
-            print(f"   🎯 Umbral de silencio adaptativo calculado: {SILENCE_THRESHOLD:.1f}")
-            
+            print(f"   🎯 Umbral de silencio adaptativo: {SILENCE_THRESHOLD:.1f}")
         else:
-            print(f"❌ Error: Insuficientes muestras de audio ({len(rms_samples)}). Usando umbral de respaldo.")
+            print(f"❌ Insuficientes muestras. Usando umbral de respaldo.")
             SILENCE_THRESHOLD = FALLBACK_THRESHOLD
             is_calibrated = True
     
     except Exception as e:
-        print(f"❌ Error crítico en calibración: {e}. Usando umbral de emergencia.")
+        print(f"❌ Error en calibración: {e}. Usando umbral de emergencia.")
         SILENCE_THRESHOLD = FALLBACK_THRESHOLD
         is_calibrated = True
-    
+
     # ==========================================
-    # FASE 2: DETECCIÓN DE VOZ
+    # FASE 2: DETECCIÓN DE VOZ CON SILERO VAD
     # ==========================================
     
     if not is_calibrated or SILENCE_THRESHOLD is None:
         print("❌ Imposible continuar sin un umbral definido.")
         return
 
-    print(f"\n[🎤] Esperando audio... (Umbral activo: {SILENCE_THRESHOLD:.1f})")
+    print(f"\n[🎤] Esperando audio... (Umbral RMS: {SILENCE_THRESHOLD:.1f}, VAD: {VAD_THRESHOLD})")
     
     try:
         while True:
@@ -486,31 +476,77 @@ def handle_connection(conn, session, semph):
                 audio_np = np.frombuffer(frame, dtype=np.int16).astype(np.float32)
                 rms = np.sqrt(np.mean(audio_np**2)) if len(audio_np) > 0 else 0
             
-                # --- MEJORA: Lógica de estados para detección ---
                 if is_speaking:
-                    # --- ESTADO: YA ESTAMOS GRABANDO VOZ ---
+                    # ESTADO: YA ESTAMOS GRABANDO VOZ
                     if rms > SILENCE_THRESHOLD:
-                        # La voz continúa, seguimos grabando
                         speech_buffer += frame
                         speech_frame_count += 1
                         silence_frames_after_speech = 0
                     else:
-                        # Silencio detectado después de voz, empezamos a contar
                         silence_frames_after_speech += 1
-                        speech_buffer += frame # Añadir el silencio final para un corte natural
+                        speech_buffer += frame
 
                         if silence_frames_after_speech >= MAX_SILENCE_FRAMES:
-                            # Fin del segmento de voz por silencio prolongado
                             print("🔇", end="", flush=True)
                             
-                            # Procesar si el audio es suficientemente largo
+                            # INTEGRACIÓN DE SILERO VAD - VALIDACIÓN FINAL
                             if speech_frame_count >= MIN_SPEECH_FRAMES and len(speech_buffer) >= MIN_AUDIO_BYTES:
-                                processed_segments += 1
-                                segment_duration = len(speech_buffer) / (SAMPLE_RATE * BYTES_PER_SAMPLE)
-                                print(f"\n📝 Segmento {processed_segments} finalizado ({segment_duration:.2f}s). Procesando...")
                                 
+                                # Convertir buffer a numpy array para Silero VAD
                                 try:
-                                    # (El código de procesamiento VAD y envío a Baseten va aquí, sin cambios)
+                                    speech_audio_np = np.frombuffer(speech_buffer, dtype=np.int16).astype(np.float32)
+                                    # Normalizar a rango [-1, 1] para Silero
+                                    speech_audio_normalized = speech_audio_np / 32768.0
+                                    
+                                    # APLICAR SILERO VAD para confirmar si realmente hay voz
+                                    print(f"\n🤖 Aplicando Silero VAD (umbral: {VAD_THRESHOLD})...")
+                                    
+                                    vad_segments = get_speech_timestamps_onnx(
+                                        speech_audio_normalized,
+                                        sample_rate=SAMPLE_RATE,
+                                        threshold=VAD_THRESHOLD,
+                                        min_speech_duration_ms=MIN_VAD_SPEECH_DURATION_MS,
+                                        min_silence_duration_ms=100,
+                                        window_size_samples=512,
+                                        padding_ms=VAD_PADDING_MS
+                                    )
+                                    
+                                    if vad_segments and len(vad_segments) > 0:
+                                        # SILERO CONFIRMA QUE HAY VOZ
+                                        processed_segments += 1
+                                        segment_duration = len(speech_buffer) / (SAMPLE_RATE * BYTES_PER_SAMPLE)
+                                        total_vad_duration = sum((seg['end'] - seg['start']) / SAMPLE_RATE for seg in vad_segments)
+                                        
+                                        print(f"✅ VAD confirmó voz: {len(vad_segments)} segmento(s)")
+                                        print(f"📝 Segmento {processed_segments} ({segment_duration:.2f}s total, {total_vad_duration:.2f}s voz)")
+                                        
+                                        # Crear WAV para envío
+                                        wav_buffer = io.BytesIO()
+                                        with wave.open(wav_buffer, 'wb') as wf:
+                                            wf.setnchannels(1)
+                                            wf.setsampwidth(2)
+                                            wf.setframerate(SAMPLE_RATE)
+                                            wf.writeframes(speech_buffer)
+                                        wav_buffer.seek(0)
+                                        
+                                        # Enviar a Baseten
+                                        send_to_baseten(wav_buffer)
+                                        print("   📤 Enviado a Baseten")
+                                        
+                                    else:
+                                        # SILERO NO DETECTA VOZ - FALSO POSITIVO
+                                        print("❌ VAD rechazó el segmento: No hay voz suficiente")
+                                        print(f"   📊 RMS promedio era: {np.mean([np.sqrt(np.mean(np.frombuffer(speech_buffer[i:i+FRAME_SIZE], dtype=np.int16).astype(np.float32)**2)) for i in range(0, len(speech_buffer), FRAME_SIZE)]):.1f}")
+                                        
+                                except Exception as vad_error:
+                                    print(f"❌ Error en Silero VAD: {vad_error}")
+                                    print("   🔄 Enviando sin validación VAD...")
+                                    
+                                    # Fallback: enviar sin validación VAD
+                                    processed_segments += 1
+                                    segment_duration = len(speech_buffer) / (SAMPLE_RATE * BYTES_PER_SAMPLE)
+                                    print(f"📝 Segmento {processed_segments} ({segment_duration:.2f}s) - Sin validación VAD")
+                                    
                                     wav_buffer = io.BytesIO()
                                     with wave.open(wav_buffer, 'wb') as wf:
                                         wf.setnchannels(1)
@@ -519,37 +555,30 @@ def handle_connection(conn, session, semph):
                                         wf.writeframes(speech_buffer)
                                     wav_buffer.seek(0)
                                     
-                                    # Aquí iría tu lógica de `get_speech_timestamps_onnx` y `send_to_baseten`
-                                    send_to_baseten(wav_buffer) # Placeholder para tu función de envío
-                                    print("   📤 Enviado a Baseten")
-                                    
-                                except Exception as e:
-                                    print(f"   ❌ Error procesando segmento: {e}")
+                                    send_to_baseten(wav_buffer)
+                                    print("   📤 Enviado a Baseten (fallback)")
                             else:
-                                # El audio grabado es muy corto, se descarta
+                                # Segmento muy corto, descartado antes del VAD
                                 print(f"\n⏭️ Segmento descartado (demasiado corto: {len(speech_buffer)} bytes)")
 
-                            # --- Reseteo de estado para la próxima detección ---
+                            # Reset de estado
                             is_speaking = False
                             speech_buffer = b""
                             speech_frame_count = 0
                             silence_frames_after_speech = 0
                             potential_speech_frames = 0
                 else:
-                    # --- ESTADO: ESPERANDO VOZ ---
+                    # ESTADO: ESPERANDO VOZ
                     if rms > SILENCE_THRESHOLD:
-                        # Umbral superado, posible inicio de voz
                         potential_speech_frames += 1
-                        speech_buffer += frame # Guardar temporalmente por si se confirma
+                        speech_buffer += frame
 
                         if potential_speech_frames >= SPEECH_CONFIRMATION_FRAMES:
-                            # Se confirma el inicio de voz
                             is_speaking = True
                             speech_frame_count = potential_speech_frames
                             potential_speech_frames = 0
                             print("🗣️", end="", flush=True)
                     else:
-                        # No es voz, reseteamos el buffer de confirmación
                         potential_speech_frames = 0
                         speech_buffer = b""
 
@@ -561,7 +590,6 @@ def handle_connection(conn, session, semph):
         print(f"\n📊 Resumen: {processed_segments} segmentos procesados.")
         conn.close()
         print("🔌 Conexión cerrada.")
-
 
 def start_arecord():
     try:
