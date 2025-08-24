@@ -340,7 +340,7 @@ def handle_connection(conn, session, semph):
     # ==========================================
     # CONFIGURACIÓN DE PARÁMETROS OPTIMIZADOS
     # ==========================================
-    
+    # 
     # Parámetros de frame
     FRAME_DURATION = 0.064
     FRAME_SIZE = int(SAMPLE_RATE * FRAME_DURATION * BYTES_PER_SAMPLE)
@@ -584,12 +584,12 @@ def handle_connection(conn, session, semph):
         conn.close()
         print("🔌 Conexión cerrada.")
 
- 
+
 def start_arecord():
     try:
         pipeline = (
             "arecord -f S16_LE -c1 -r 16000 -t raw -D plughw:3,0 | "
-            "sox -t raw -r 16000 -e signed -b 16 -c 1 - -t raw - gain 18 | "
+            " python audio_filter.py | "
             "nc 127.0.0.1 4300"
         )
         return subprocess.Popen(pipeline, shell=True)
