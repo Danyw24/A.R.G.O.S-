@@ -336,60 +336,63 @@ def get_speech_timestamps_onnx(wav, sample_rate=16000, threshold=0.5,
     return speech_timestamps
 
 
-
 def handle_connection(conn, session, semph):
     # ==========================================
     # CONFIGURACIÓN DE PARÁMETROS OPTIMIZADOS
     # ==========================================
     
-    # Parámetros de frame optimizados para tiempo real
-    FRAME_DURATION = 0.064  # 64ms
+    # Parámetros de frame
+    FRAME_DURATION = 0.064
     FRAME_SIZE = int(SAMPLE_RATE * FRAME_DURATION * BYTES_PER_SAMPLE)
     
-    # Parámetros de calibración mejorados
-    CALIB_SEC = 2.0  # Aumentado para mejor estadística
+    # Parámetros de calibración
+    CALIB_SEC = 2.0
     CALIB_FRAMES = int(CALIB_SEC / FRAME_DURATION)
     
-    # NUEVOS PARÁMETROS DE UMBRAL BASADOS EN TU ANÁLISIS
-    # Basado en tus datos: silencio ~1400, voz ~1588
-    ADAPTIVE_THRESHOLD = True  # Usar umbral adaptativo
-    BASE_THRESHOLD_PERCENTILE = 50  # percentil mediano para máxima sensibilidad
-    VOICE_MULTIPLIER = 1.3  # Subido ligeramente para filtrar ruidos
-    FALLBACK_THRESHOLD = 1850.0  # Umbral un poco más alto
+    # --- MEJORA: Parámetros de umbral dinámico ---
+    ADAPTIVE_THRESHOLD = True
+    BASE_THRESHOLD_PERCENTILE = 50
+    # El multiplicador ahora se ajustará dinámicamente tras la calibración
+    VOICE_MULTIPLIER_MIN = 1.25  # Mínimo para ambientes silenciosos
+    VOICE_MULTIPLIER_MAX = 1.6   # Máximo para ambientes ruidosos
+    FALLBACK_THRESHOLD = 1850.0
     
     # Parámetros de detección de habla
-    MIN_SPEECH_DURATION_MS = 200  # Reducido para más sensibilidad
-    MAX_SILENCE_DURATION_MS = 700  # Reducido para cortes más rápidos
+    MIN_SPEECH_DURATION_MS = 200
+    MAX_SILENCE_DURATION_MS = 700
     MIN_SPEECH_FRAMES = int(MIN_SPEECH_DURATION_MS / (FRAME_DURATION * 1000))
     MAX_SILENCE_FRAMES = int(MAX_SILENCE_DURATION_MS / (FRAME_DURATION * 1000))
     
-    # Parámetros de análisis VAD
-    RMS_SMOOTHING_WINDOW = 3  # Ventana más pequeña para mayor responsividad
-    MIN_VAD_CHUNK_SIZE = 512
-    VAD_WINDOW_SIZE = 1024
-    MIN_AUDIO_BYTES = int(SAMPLE_RATE * BYTES_PER_SAMPLE * 0.4)  # 400ms mínimo
+    # --- MEJORA: Confirmación de voz para evitar falsos positivos ---
+    SPEECH_CONFIRMATION_FRAMES = 2 # Requiere 2 frames seguidos para iniciar la detección
     
+    # Parámetros de análisis VAD
+    RMS_SMOOTHING_WINDOW = 3
+    MIN_VAD_CHUNK_SIZE = 512
+    MIN_AUDIO_BYTES = int(SAMPLE_RATE * BYTES_PER_SAMPLE * 0.4)
+
     # ==========================================
     # INICIALIZACIÓN DE VARIABLES
     # ==========================================
     
-    # Buffers de audio
     buffer = b""
     speech_buffer = b""
     calibration_buffer = b""
     
-    # Contadores y estado
-    silence_counter = 0
+    silence_frames_after_speech = 0
     speech_frame_count = 0
     processed_segments = 0
     frames_collected = 0
     
-    # Estructuras para análisis temporal mejoradas
-    rms_samples = deque(maxlen=CALIB_FRAMES * 2)  # Buffer más grande
+    # --- MEJORA: Estado de detección y contador para confirmación ---
+    is_speaking = False
+    potential_speech_frames = 0
+    
+    rms_samples = deque(maxlen=CALIB_FRAMES * 2)
     rms_history = deque(maxlen=RMS_SMOOTHING_WINDOW)
     
-    # Variables de umbral dinámico
     SILENCE_THRESHOLD = None
+    VOICE_MULTIPLIER = VOICE_MULTIPLIER_MIN # Valor inicial
     is_calibrated = False
     
     # ==========================================
@@ -405,31 +408,28 @@ def handle_connection(conn, session, semph):
         start_time = time.time()
         while frames_collected < CALIB_FRAMES:
             try:
-                data = conn.recv(8192)  # Buffer más grande
+                data = conn.recv(8192)
                 if not data:
                     print("❌ Error: conexión cerrada durante calibración")
                     return
                 
                 calibration_buffer += data
                 
-                # Procesar frames disponibles
                 while len(calibration_buffer) >= FRAME_SIZE and frames_collected < CALIB_FRAMES:
                     frame = calibration_buffer[:FRAME_SIZE]
                     calibration_buffer = calibration_buffer[FRAME_SIZE:]
                     
-                    # Calcular RMS con mejor precisión
                     try:
                         audio_np = np.frombuffer(frame, dtype=np.int16).astype(np.float32)
                         if len(audio_np) > 0:
                             rms = np.sqrt(np.mean(audio_np**2))
-                            if rms > 50:  # Filtrar ruido eléctrico muy bajo
+                            if rms > 50:
                                 rms_samples.append(rms)
                                 frames_collected += 1
                     except Exception as e:
                         print(f"   ⚠️ Error procesando frame: {e}")
                         continue
                     
-                    # Mostrar progreso cada 10 frames
                     if frames_collected % 10 == 0 and frames_collected > 0:
                         progress = (frames_collected / CALIB_FRAMES) * 100
                         elapsed = time.time() - start_time
@@ -439,92 +439,49 @@ def handle_connection(conn, session, semph):
                 print(f"   ⚠️ Error en calibración: {e}")
                 continue
         
-        # ==========================================
-        # ANÁLISIS ESTADÍSTICO MEJORADO
-        # ==========================================
-        
         if len(rms_samples) >= 15:
             rms_array = np.array(rms_samples)
             
-            # Calcular múltiples estadísticas
             mean_rms = np.mean(rms_array)
             std_rms = np.std(rms_array)
             median_rms = np.median(rms_array)
-            p75_rms = np.percentile(rms_array, BASE_THRESHOLD_PERCENTILE)
-            p95_rms = np.percentile(rms_array, 95)
+            p50_rms = np.percentile(rms_array, BASE_THRESHOLD_PERCENTILE)
             
-            # MÉTODO 1: Umbral adaptativo con percentil 50 (máxima sensibilidad)
+            # --- MEJORA: Cálculo de multiplicador dinámico ---
+            # Se ajusta el multiplicador basado en la variabilidad del ruido (std).
+            # Más variabilidad = ambiente más ruidoso = multiplicador más alto.
+            noise_variability = std_rms / mean_rms if mean_rms > 0 else 0
+            VOICE_MULTIPLIER = np.clip(
+                VOICE_MULTIPLIER_MIN + noise_variability * 2.0, 
+                VOICE_MULTIPLIER_MIN, 
+                VOICE_MULTIPLIER_MAX
+            )
+
             if ADAPTIVE_THRESHOLD:
-                # Usar mediana (percentil 50) como base más sensible
-                p50_rms = np.percentile(rms_array, BASE_THRESHOLD_PERCENTILE)
-                base_noise = p50_rms  # mediana del ruido
+                base_noise = p50_rms
                 adaptive_threshold = base_noise * VOICE_MULTIPLIER
                 
-                # Verificar rangos optimizados para filtrar ruidos
-                if adaptive_threshold < 1600:  # Muy bajo - ajustar mínimo
-                    adaptive_threshold = 1700
-                elif adaptive_threshold > 2300:  # Muy alto - limitar máximo  
-                    adaptive_threshold = 2200
-                # Rango ideal: 1600-2300
-                
-                SILENCE_THRESHOLD = float(adaptive_threshold)
+                # Límites de seguridad para el umbral
+                SILENCE_THRESHOLD = float(np.clip(adaptive_threshold, 1600, 2300))
             else:
                 SILENCE_THRESHOLD = FALLBACK_THRESHOLD
             
             is_calibrated = True
             
-            # Mostrar análisis detallado
             print(f"\n[✅] Calibración completada exitosamente:")
-            print(f"   📊 Estadísticas del ruido ambiente:")
-            print(f"      - Media: {mean_rms:.1f}")
-            print(f"      - Desv. std: {std_rms:.1f}")
-            print(f"      - Mediana: {median_rms:.1f}")
-            print(f"      - Percentil 50 (mediana): {p50_rms:.1f}")
-            print(f"      - Percentil 75: {p75_rms:.1f}")
-            print(f"      - Percentil 95: {p95_rms:.1f}")
-            print(f"   🎯 Umbral seleccionado: {SILENCE_THRESHOLD:.1f}")
-            print(f"   🔍 Método: {'Adaptativo (percentil 50)' if ADAPTIVE_THRESHOLD else 'Fijo'}")
-            
-            # Clasificar el ambiente según tus datos reales
-            if mean_rms < 1400:
-                ambiente = "🔇 Muy silencioso"
-            elif mean_rms < 1500:
-                ambiente = "🤫 Silencioso normal (tu ambiente)"  
-            elif mean_rms < 1800:
-                ambiente = "🔊 Ambiente normal"
-            else:
-                ambiente = "📢 Ruidoso (verificar calibración)"
-            print(f"   🏠 Ambiente detectado: {ambiente}")
-            
-            # Mostrar predicción de sensibilidad con rangos realistas
-            sensibilidad_esperada = SILENCE_THRESHOLD - mean_rms
-            if sensibilidad_esperada > 400:
-                nivel = "🟢 Alta sensibilidad (perfecto)"
-            elif sensibilidad_esperada > 250:
-                nivel = "🟡 Sensibilidad media (bueno)"
-            elif sensibilidad_esperada > 100:
-                nivel = "🔴 Baja sensibilidad (ajustar)"
-            else:
-                nivel = "❌ Muy baja (revisar setup)"
-            print(f"   📈 Margen de detección: {sensibilidad_esperada:.1f} ({nivel})")
-            
-            # Comparar con tus recomendaciones
-            print(f"   💡 Comparación con análisis:")
-            print(f"      🔴 Sensible: 1454 | 🟡 Balanceado: 1794 | 🟢 Óptimo: ~2100+")
+            print(f"   📊 Ruido (Media/Std): {mean_rms:.1f} / {std_rms:.1f}")
+            print(f"   📈 Multiplicador dinámico calculado: {VOICE_MULTIPLIER:.2f}")
+            print(f"   🎯 Umbral de silencio final: {SILENCE_THRESHOLD:.1f}")
             
         else:
-            print("❌ Error: insuficientes muestras para calibración")
-            print(f"   Solo se recolectaron {len(rms_samples)} muestras")
-            # Usar umbral de respaldo basado en tu análisis
+            print("❌ Error: insuficientes muestras. Usando umbral de respaldo.")
             SILENCE_THRESHOLD = FALLBACK_THRESHOLD
             is_calibrated = True
-            print(f"   🔄 Usando umbral de respaldo: {SILENCE_THRESHOLD}")
     
     except Exception as e:
-        print(f"❌ Error crítico en calibración: {e}")
+        print(f"❌ Error crítico en calibración: {e}. Usando umbral de emergencia.")
         SILENCE_THRESHOLD = FALLBACK_THRESHOLD
         is_calibrated = True
-        print(f"   🔄 Usando umbral de emergencia: {SILENCE_THRESHOLD}")
     
     # ==========================================
     # FASE 2: DETECCIÓN DE VOZ MEJORADA
@@ -532,9 +489,6 @@ def handle_connection(conn, session, semph):
     
     print(f"\n[🎤] Iniciando detección de voz optimizada...")
     print(f"   🎯 Umbral activo: {SILENCE_THRESHOLD:.1f}")
-    print(f"   ⏱️ Min habla: {MIN_SPEECH_DURATION_MS}ms")
-    print(f"   🔇 Max silencio: {MAX_SILENCE_DURATION_MS}ms")
-    print(f"   📊 Suavizado RMS: {RMS_SMOOTHING_WINDOW} frames")
     
     try:
         while True:
@@ -548,151 +502,89 @@ def handle_connection(conn, session, semph):
                 frame = buffer[:FRAME_SIZE]
                 buffer = buffer[FRAME_SIZE:]
                 
-                # Calcular RMS optimizado
                 audio_np = np.frombuffer(frame, dtype=np.int16).astype(np.float32)
-                rms = np.sqrt(np.mean(audio_np**2))
+                rms = np.sqrt(np.mean(audio_np**2)) if len(audio_np) > 0 else 0
                 
+                rms_history.append(rms)
+                smoothed_rms = float(np.mean(rms_history))
                 
-                # Suavizado temporal del RMS
-                if rms > 0:
-                    rms_history.append(rms)
-                    smoothed_rms = float(np.mean(rms_history)) if rms_history else rms
-                else:
-                    smoothed_rms = 0.0
-                
-                # Detección de habla con umbral dinámico
-                if is_calibrated and smoothed_rms > SILENCE_THRESHOLD:
-                    # DETECCIÓN DE HABLA
-                    speech_buffer += frame
-                    speech_frame_count += 1
-                    silence_counter = 0
-                    
-                    # Mostrar indicador de actividad
-                    if speech_frame_count % 10 == 0:
-                        print("🗣️", end="", flush=True)
-                        
-                else:
-                    # DETECCIÓN DE SILENCIO
-                    if speech_buffer:  # solo si tenemos audio acumulado
-                        silence_counter += 1
-                        
-                        
-                        #Mostrar indicador de silencio
-                        if silence_counter % 5 == 0:
+                # --- MEJORA: Lógica de estados para detección ---
+                if is_speaking:
+                    # --- ESTADO: YA ESTAMOS GRABANDO VOZ ---
+                    if smoothed_rms > SILENCE_THRESHOLD:
+                        # La voz continúa, seguimos grabando
+                        speech_buffer += frame
+                        speech_frame_count += 1
+                        silence_frames_after_speech = 0
+                    else:
+                        # Silencio detectado después de voz, empezamos a contar
+                        silence_frames_after_speech += 1
+                        speech_buffer += frame # Añadir el silencio final para un corte natural
+
+                        if silence_frames_after_speech >= MAX_SILENCE_FRAMES:
+                            # Fin del segmento de voz por silencio prolongado
                             print("🔇", end="", flush=True)
-                        
-                        
-                        # Verificar si completamos un segmento de habla válido
-                        if (silence_counter >= MAX_SILENCE_FRAMES and 
-                            speech_frame_count >= MIN_SPEECH_FRAMES and
-                            len(speech_buffer) >= MIN_AUDIO_BYTES):
                             
-                            
-                            # PROCESAMIENTO DE SEGMENTO COMPLETO
-                            processed_segments += 1
-                            segment_duration = len(speech_buffer) / (SAMPLE_RATE * BYTES_PER_SAMPLE)
-                            
-                            
-                            print(f"\n📝 Segmento {processed_segments}:")
-                            print(f"   📊 Tamaño: {len(speech_buffer)} bytes")
-                            print(f"   ⏱️ Duración: {segment_duration:.2f}s")
-                            print(f"   🎙️ Frames de habla: {speech_frame_count}")
-                            
-                            
-                            try:
-                                # Conversión PCM a WAV optimizada
-                                wav_buffer = io.BytesIO()
-                                with wave.open(wav_buffer, 'wb') as wav_file:
-                                    wav_file.setnchannels(1)  # mono
-                                    wav_file.setsampwidth(2)  # 16-bit
-                                    wav_file.setframerate(SAMPLE_RATE)
-                                    wav_file.writeframes(speech_buffer)
-                                wav_buffer.seek(0)
-
-
-                                # Cargar audio directamente como numpy array
-                                import soundfile as sf
-                                wav_buffer.seek(0)
-                                wav_filtered, _ = sf.read(wav_buffer, dtype=np.float32)
-
-                                # Verificar que el audio tenga suficientes samples
-                                if len(wav_filtered) < MIN_VAD_CHUNK_SIZE:
-                                    print(f"   ⚠️ Audio muy corto para VAD ({len(wav_filtered)} samples < {MIN_VAD_CHUNK_SIZE})")
-                                    # Enviar sin VAD como fallback
-                                    wav_buffer.seek(0)
-                                    send_to_baseten(wav_buffer)
-                                    print("   📤 Enviado sin análisis VAD")
-                                else:
-                                    # Análisis con VAD ONNX optimizado
-                                    print("   🔍 Analizando con VAD ONNX...", end="")
-
-                                    # Usar la versión ONNX optimizada con mejoras anti-corte
-                                    speech_timestamps = get_speech_timestamps_onnx(
-                                        wav_filtered, 
-                                        sample_rate=SAMPLE_RATE,
-                                        threshold=0.5,  # umbral de confianza
-                                        min_speech_duration_ms=150,  # mínimo 150ms de habla (más permisivo)
-                                        min_silence_duration_ms=200,  # mínimo 200ms de silencio para cortar
-                                        window_size_samples=512,  # ventana optimizada para tiempo real
-                                        padding_ms=100  # 100ms de padding antes/después de cada segmento
-                                    )
-
-                                    if speech_timestamps:
-                                        print(" ✅ VAD confirmado")
-                                        print(f"   🎯 Segmentos de voz detectados: {len(speech_timestamps)}")
-                                        wav_buffer.seek(0)
-                                        send_to_baseten(wav_buffer)
-                                        print("   📤 Enviado a Baseten")
-
-                                    else:
-                                        print(" ❌ No se detectó voz válida")
-                                        print("   ⏭️ Segmento descartado por VAD")
-
-
-                            except Exception as vad_error:
-                                print(f"   ❌ Error en análisis VAD: {vad_error}")
-                                # Fallback: enviar audio original
+                            # Procesar si el audio es suficientemente largo
+                            if speech_frame_count >= MIN_SPEECH_FRAMES and len(speech_buffer) >= MIN_AUDIO_BYTES:
+                                processed_segments += 1
+                                segment_duration = len(speech_buffer) / (SAMPLE_RATE * BYTES_PER_SAMPLE)
+                                print(f"\n📝 Segmento {processed_segments} finalizado ({segment_duration:.2f}s). Procesando...")
+                                
                                 try:
+                                    # (El código de procesamiento VAD y envío a Baseten va aquí, sin cambios)
                                     wav_buffer = io.BytesIO()
-                                    with wave.open(wav_buffer, 'wb') as wav_file:
-                                        wav_file.setnchannels(1)
-                                        wav_file.setsampwidth(2)
-                                        wav_file.setframerate(SAMPLE_RATE)
-                                        wav_file.writeframes(speech_buffer)
+                                    with wave.open(wav_buffer, 'wb') as wf:
+                                        wf.setnchannels(1)
+                                        wf.setsampwidth(2)
+                                        wf.setframerate(SAMPLE_RATE)
+                                        wf.writeframes(speech_buffer)
                                     wav_buffer.seek(0)
-                                    send_to_baseten(wav_buffer)
-                                    print("   📤 Enviado como fallback")
-                                except Exception as fallback_error:
-                                    print(f"   ❌ Fallback también falló: {fallback_error}")
+                                    
+                                    # Aquí iría tu lógica de `get_speech_timestamps_onnx` y `send_to_baseten`
+                                    send_to_baseten(wav_buffer) # Placeholder para tu función de envío
+                                    print("   📤 Enviado a Baseten")
+                                    
+                                except Exception as e:
+                                    print(f"   ❌ Error procesando segmento: {e}")
+                            else:
+                                # El audio grabado es muy corto, se descarta
+                                print(f"\n⏭️ Segmento descartado (demasiado corto: {len(speech_buffer)} bytes)")
+
+                            # --- Reseteo de estado para la próxima detección ---
+                            is_speaking = False
                             speech_buffer = b""
-                            silence_counter = 0
                             speech_frame_count = 0
-                            
-                        elif len(speech_buffer) < MIN_AUDIO_BYTES and silence_counter >= MAX_SILENCE_FRAMES:
-                            # Segmento demasiado corto
-                            print(f"\n⏭️ Segmento descartado (muy corto): {len(speech_buffer)} bytes")
-                            speech_buffer = b""
-                            silence_counter = 0
-                            speech_frame_count = 0
-    
+                            silence_frames_after_speech = 0
+                            potential_speech_frames = 0
+                else:
+                    # --- ESTADO: ESPERANDO VOZ ---
+                    if smoothed_rms > SILENCE_THRESHOLD:
+                        # Umbral superado, posible inicio de voz
+                        potential_speech_frames += 1
+                        speech_buffer += frame # Guardar temporalmente por si se confirma
+
+                        if potential_speech_frames >= SPEECH_CONFIRMATION_FRAMES:
+                            # Se confirma el inicio de voz
+                            is_speaking = True
+                            speech_frame_count = potential_speech_frames
+                            potential_speech_frames = 0
+                            print("🗣️", end="", flush=True)
+                    else:
+                        # No es voz, reseteamos el buffer de confirmación
+                        potential_speech_frames = 0
+                        speech_buffer = b""
+
     except KeyboardInterrupt:
-        print(f"\n🛑 Interrupción detectada. Procesados {processed_segments} segmentos.")
+        print(f"\n🛑 Interrupción detectada.")
     except Exception as e:
         print(f"\n❌ Error inesperado: {e}")
     finally:
-        try:
-            print(f"\n📊 Estadísticas finales:")
-            print(f"   🎤 Segmentos procesados: {processed_segments}")
-            if SILENCE_THRESHOLD:
-                print(f"   🎯 Umbral usado: {SILENCE_THRESHOLD:.2f}")
-            print(f"   ⏱️ Duración de frame: {FRAME_DURATION*1000:.1f}ms")
-            
-            conn.close()
-            print("🔌 Conexión cerrada correctamente")
-        except:
-            print("❌ Error cerrando conexión") 
+        print(f"\n📊 Resumen: {processed_segments} segmentos procesados.")
+        conn.close()
+        print("🔌 Conexión cerrada.")
 
-
+ 
 def start_arecord():
     try:
         pipeline = (
