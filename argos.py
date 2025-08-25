@@ -25,6 +25,8 @@ from IPython.display import Audio
 from pprint import pprint
 import base64
 torch.set_num_threads(1)
+import re
+
 
 
 PORT = 4300
@@ -334,6 +336,8 @@ def get_speech_timestamps_onnx(wav, sample_rate=16000, threshold=0.5,
         speech_timestamps = merged_timestamps
     
     return speech_timestamps
+
+
 def handle_connection(conn, session, semph):
     # ==========================================
     # CONFIGURACIÓN DE PARÁMETROS OPTIMIZADOS
@@ -620,26 +624,30 @@ def handle_connection(conn, session, semph):
         conn.close()
         print("🔌 Conexión cerrada.")
 
+
 def start_arecord():
     try:
-        pipeline = (
-            "arecord -f S16_LE -c1 -r 16000 -t raw -D plughw:3,0 | "
-            " python audio_filter.py | "
-            "nc 127.0.0.1 4300"
-        )
-        print("[+]Usando filtro")
-        return subprocess.Popen(pipeline, shell=True)
-    except Exception as e:
-        print(f"Error iniciando arecord con amplificación: {e}")
-        try:
-            fallback = "arecord -f S16_LE -c1 -r 16000 -t raw -D plughw:3,0 | nc 127.0.0.1 4300"
-            return subprocess.Popen(fallback, shell=True)
-        except Exception as e2:
-            print(f"Error en fallback: {e2}")
-            return subprocess.Popen([
-                "arecord -f S16_LE -c1 -r 16000 -t raw -D default | nc 127.0.0.1 4300"
-            ], shell=True)
-            
+        # Detectar dispositivo USB automáticamente
+        result = subprocess.run(['arecord', '-l'], capture_output=True, text=True, check=True)
+        usb_match = re.search(r'card\s+(\d+):\s+.*(?:USB|MIC).*device\s+(\d+):', result.stdout, re.IGNORECASE)
+        device = f"plughw:{usb_match[1]},{usb_match[2]}" if usb_match else "default"
+        
+        print(f"[🎤] Usando dispositivo: {device}")
+        
+        # Probar con filtro primero
+        for cmd in [
+            f"arecord -f S16_LE -c1 -r 16000 -t raw -D {device} | python audio_filter.py | nc 127.0.0.1 4300",
+            f"arecord -f S16_LE -c1 -r 16000 -t raw -D {device} | nc 127.0.0.1 4300",
+            "arecord -f S16_LE -c1 -r 16000 -t raw | nc 127.0.0.1 4300"
+        ]:
+            try:
+                return subprocess.Popen(cmd, shell=True)
+            except: continue
+                
+    except:
+        return subprocess.Popen("arecord -f S16_LE -c1 -r 16000 -t raw | nc 127.0.0.1 4300", shell=True)
+
+
             
 def send_to_baseten(wav_data):
     """
