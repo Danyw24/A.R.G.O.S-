@@ -632,23 +632,59 @@ def send_to_baseten(wav_data):
         "Content-Type": "application/json"
     }
     
-        # CAMBIO 1: Función para mute/unmute del micrófono
     def mute_microphone():
         try:
-            subprocess.run(["amixer", "sset", "Capture", "0%"], 
-                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            print("🔇 Micrófono silenciado")
+            # Método 1: Intentar con el dispositivo específico hw:3
+            subprocess.run(["amixer", "-c", "3", "sset", "Mic", "0%"], 
+                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=2)
+            print("🔇 Micrófono silenciado (hw:3)")
+            return
         except:
             pass
+        
+        try:
+            # Método 2: Intentar con Capture genérico
+            subprocess.run(["amixer", "sset", "Capture", "0%"], 
+                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=2)
+            print("🔇 Micrófono silenciado (Capture)")
+            return
+        except:
+            pass
+        
+        try:
+            # Método 3: Mute por software - matar proceso arecord temporalmente
+            subprocess.run(["pkill", "-STOP", "-f", "arecord"], 
+                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=2)
+            print("🔇 Proceso arecord pausado")
+        except:
+            print("⚠️ No se pudo silenciar micrófono")
     
     def unmute_microphone():
         try:
-            subprocess.run(["amixer", "sset", "Capture", "85%"], 
-                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            print("🎤 Micrófono reactivado")
+            # Método 1: Reactivar con el dispositivo específico hw:3
+            subprocess.run(["amixer", "-c", "3", "sset", "Mic", "100%"], 
+                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=2)
+            print("🎤 Micrófono reactivado (hw:3)")
+            return
         except:
             pass
-    
+        
+        try:
+            # Método 2: Reactivar con Capture genérico
+            subprocess.run(["amixer", "sset", "Capture", "85%"], 
+                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=2)
+            print("🎤 Micrófono reactivado (Capture)")
+            return
+        except:
+            pass
+        
+        try:
+            # Método 3: Reanudar proceso arecord
+            subprocess.run(["pkill", "-CONT", "-f", "arecord"], 
+                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=2)
+            print("🎤 Proceso arecord reanudado")
+        except:
+            print("⚠️ No se pudo reactivar micrófono")
     
     try:
         # Hacer request con streaming habilitado al host correcto
