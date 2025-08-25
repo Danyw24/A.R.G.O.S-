@@ -26,7 +26,7 @@ from pprint import pprint
 import base64
 torch.set_num_threads(1)
 import re
-
+import signal
 
 
 PORT = 4300
@@ -669,60 +669,87 @@ def send_to_baseten(wav_data):
         "Content-Type": "application/json"
     }
     
+
     def mute_microphone():
+        """Silencia el micrófono pausando todo el pipeline de audio"""
         try:
-            # Método 1: Intentar con el dispositivo específico hw:3
-            subprocess.run(["amixer", "-c", "3", "sset", "Mic", "0%"], 
-                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=2)
-            print("🔇 Micrófono silenciado (hw:3)")
-            return
-        except:
-            pass
-        
-        try:
-            # Método 2: Intentar con Capture genérico
-            subprocess.run(["amixer", "sset", "Capture", "0%"], 
-                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=2)
-            print("🔇 Micrófono silenciado (Capture)")
-            return
-        except:
-            pass
-        
-        try:
-            # Método 3: Mute por software - matar proceso arecord temporalmente
-            subprocess.run(["pkill", "-STOP", "-f", "arecord"], 
-                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=2)
-            print("🔇 Proceso arecord pausado")
-        except:
-            print("⚠️ No se pudo silenciar micrófono")
+            # Buscar el proceso shell que ejecuta el pipeline completo
+            result = subprocess.run(["pgrep", "-f", "arecord.*audio_filter"], 
+                                    capture_output=True, text=True, timeout=2)
+
+            if result.returncode == 0 and result.stdout.strip():
+                pids = result.stdout.strip().split('\n')
+                for pid in pids:
+                    try:
+                        # Pausar el proceso shell y todos sus hijos
+                        os.kill(int(pid), signal.SIGSTOP)
+                        # También pausar procesos hijos (arecord, python, nc)
+                        subprocess.run(f"pkill -STOP -P {pid}", shell=True, 
+                                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                    except:
+                        continue
+                print("🔇 Pipeline de audio silenciado")
+                return True
+            else:
+                # Fallback: buscar solo arecord
+                result2 = subprocess.run(["pgrep", "-f", "arecord"], 
+                                            capture_output=True, text=True, timeout=2)
+                if result2.returncode == 0 and result2.stdout.strip():
+                    pids = result2.stdout.strip().split('\n')
+                    for pid in pids:
+                        try:
+                            os.kill(int(pid), signal.SIGSTOP)
+                        except:
+                            continue
+                    print("🔇 Micrófono silenciado (fallback)")
+                    return True
+                else:
+                    print("⚠️ No se encontraron procesos de audio")
+                    return False
+        except Exception as e:
+            print(f"❌ Error silenciando micrófono: {e}")
+            return False
     
     def unmute_microphone():
+        """Reactiva el micrófono reanudando todo el pipeline de audio"""
         try:
-            # Método 1: Reactivar con el dispositivo específico hw:3
-            subprocess.run(["amixer", "-c", "3", "sset", "Mic", "100%"], 
-                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=2)
-            print("🎤 Micrófono reactivado (hw:3)")
-            return
-        except:
-            pass
+            # Buscar el proceso shell que ejecuta el pipeline completo
+            result = subprocess.run(["pgrep", "-f", "arecord.*audio_filter"], 
+                                    capture_output=True, text=True, timeout=2)
+
+            if result.returncode == 0 and result.stdout.strip():
+                pids = result.stdout.strip().split('\n')
+                for pid in pids:
+                    try:
+                        # Reanudar el proceso shell y todos sus hijos
+                        os.kill(int(pid), signal.SIGCONT)
+                        # También reanudar procesos hijos (arecord, python, nc)
+                        subprocess.run(f"pkill -CONT -P {pid}", shell=True,
+                                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                    except:
+                        continue
+                print("🎤 Pipeline de audio reactivado")
+                return True
+            else:
+                # Fallback: buscar solo arecord
+                result2 = subprocess.run(["pgrep", "-f", "arecord"], 
+                                        capture_output=True, text=True, timeout=2)
+                if result2.returncode == 0 and result2.stdout.strip():
+                    pids = result2.stdout.strip().split('\n')
+                    for pid in pids:
+                        try:
+                            os.kill(int(pid), signal.SIGCONT)
+                        except:
+                            continue
+                    print("🎤 Micrófono reactivado (fallback)")
+                    return True
+                else:
+                    print("⚠️ No se encontraron procesos de audio")
+                    return False
+        except Exception as e:
+            print(f"❌ Error reactivando micrófono: {e}")
+            return False
         
-        try:
-            # Método 2: Reactivar con Capture genérico
-            subprocess.run(["amixer", "sset", "Capture", "85%"], 
-                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=2)
-            print("🎤 Micrófono reactivado (Capture)")
-            return
-        except:
-            pass
-        
-        try:
-            # Método 3: Reanudar proceso arecord
-            subprocess.run(["pkill", "-CONT", "-f", "arecord"], 
-                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=2)
-            print("🎤 Proceso arecord reanudado")
-        except:
-            print("⚠️ No se pudo reactivar micrófono")
-    
     try:
         # Hacer request con streaming habilitado al host correcto
         response = requests.post(BASETEN_HOST, json=payload, headers=headers, stream=True)
