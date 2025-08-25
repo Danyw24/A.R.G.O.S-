@@ -40,8 +40,8 @@ API_KEY = "Bearer TU_API_KEY"
 
 # Configuration
 MODEL = "232k54x3"
-BASETEN_HOST = f"https://model-nwxn27z3.api.baseten.co/deployment/31zvjgw/predict"
-BASETEN_API_KEY = "9Vux7EuB.5y3gD8nLjOzhLjqxB4wu8Rtsd77gPh2J"
+BASETEN_HOST = f"https://model-nwxn27z3.api.baseten.co/deployment/qzmvrkw/predict"
+BASETEN_API_KEY = "nc1GV4ms.1Uu1sTz51VVph6dQvU0v7lZWwVKEJBEd"
 PAYLOADS_PER_PROCESS = 1
 NUM_PROCESSES = 1
 MAX_REQUESTS_PER_PROCESS = 8
