@@ -334,7 +334,6 @@ def get_speech_timestamps_onnx(wav, sample_rate=16000, threshold=0.5,
         speech_timestamps = merged_timestamps
     
     return speech_timestamps
-
 def handle_connection(conn, session, semph):
     # ==========================================
     # CONFIGURACIÓN DE PARÁMETROS OPTIMIZADOS
@@ -520,18 +519,37 @@ def handle_connection(conn, session, semph):
                                         print(f"✅ VAD confirmó voz: {len(vad_segments)} segmento(s)")
                                         print(f"📝 Segmento {processed_segments} ({segment_duration:.2f}s total, {total_vad_duration:.2f}s voz)")
                                         
-                                        # Crear WAV para envío
+                                        # Crear WAV para envío - CON VALIDACIONES
                                         wav_buffer = io.BytesIO()
-                                        with wave.open(wav_buffer, 'wb') as wf:
-                                            wf.setnchannels(1)
-                                            wf.setsampwidth(2)
-                                            wf.setframerate(SAMPLE_RATE)
-                                            wf.writeframes(speech_buffer)
-                                        wav_buffer.seek(0)
+                                        try:
+                                            with wave.open(wav_buffer, 'wb') as wf:
+                                                wf.setnchannels(1)
+                                                wf.setsampwidth(2)
+                                                wf.setframerate(SAMPLE_RATE)
+                                                wf.writeframes(speech_buffer)
+                                            
+                                            # Validar que el WAV se creó correctamente
+                                            wav_buffer.seek(0)
+                                            wav_size = len(wav_buffer.getvalue())
+                                            
+                                            if wav_size < 1000:  # WAV debe tener al menos 1KB
+                                                print(f"❌ WAV muy pequeño ({wav_size} bytes), omitiendo envío")
+                                                continue
+                                            
+                                            print(f"📦 WAV creado: {wav_size} bytes")
+                                            wav_buffer.seek(0)  # Reset para lectura
+                                            
+                                        except Exception as wav_error:
+                                            print(f"❌ Error creando WAV: {wav_error}")
+                                            continue
                                         
-                                        # Enviar a Baseten
-                                        send_to_baseten(wav_buffer)
-                                        print("   📤 Enviado a Baseten")
+                                        # Enviar a Baseten CON MANEJO DE ERRORES
+                                        try:
+                                            send_to_baseten(wav_buffer)
+                                            print("   📤 Enviado a Baseten exitosamente")
+                                        except Exception as send_error:
+                                            print(f"   ❌ Error enviando a Baseten: {send_error}")
+                                            # No interrumpir el programa por errores de envío
                                         
                                     else:
                                         # SILERO NO DETECTA VOZ - FALSO POSITIVO
@@ -542,21 +560,32 @@ def handle_connection(conn, session, semph):
                                     print(f"❌ Error en Silero VAD: {vad_error}")
                                     print("   🔄 Enviando sin validación VAD...")
                                     
-                                    # Fallback: enviar sin validación VAD
-                                    processed_segments += 1
-                                    segment_duration = len(speech_buffer) / (SAMPLE_RATE * BYTES_PER_SAMPLE)
-                                    print(f"📝 Segmento {processed_segments} ({segment_duration:.2f}s) - Sin validación VAD")
-                                    
-                                    wav_buffer = io.BytesIO()
-                                    with wave.open(wav_buffer, 'wb') as wf:
-                                        wf.setnchannels(1)
-                                        wf.setsampwidth(2)
-                                        wf.setframerate(SAMPLE_RATE)
-                                        wf.writeframes(speech_buffer)
-                                    wav_buffer.seek(0)
-                                    
-                                    send_to_baseten(wav_buffer)
-                                    print("   📤 Enviado a Baseten (fallback)")
+                                    # Fallback: enviar sin validación VAD - CON VALIDACIONES
+                                    try:
+                                        wav_buffer = io.BytesIO()
+                                        with wave.open(wav_buffer, 'wb') as wf:
+                                            wf.setnchannels(1)
+                                            wf.setsampwidth(2)
+                                            wf.setframerate(SAMPLE_RATE)
+                                            wf.writeframes(speech_buffer)
+                                        
+                                        # Validar WAV antes de envío
+                                        wav_buffer.seek(0)
+                                        wav_size = len(wav_buffer.getvalue())
+                                        
+                                        if wav_size >= 1000:  # Mínimo 1KB
+                                            processed_segments += 1
+                                            segment_duration = len(speech_buffer) / (SAMPLE_RATE * BYTES_PER_SAMPLE)
+                                            print(f"📝 Segmento {processed_segments} ({segment_duration:.2f}s) - Sin validación VAD")
+                                            
+                                            wav_buffer.seek(0)
+                                            send_to_baseten(wav_buffer)
+                                            print("   📤 Enviado a Baseten (fallback)")
+                                        else:
+                                            print(f"❌ WAV fallback muy pequeño ({wav_size} bytes), omitido")
+                                            
+                                    except Exception as fallback_error:
+                                        print(f"❌ Error en fallback: {fallback_error}")
                             else:
                                 # Segmento muy corto, descartado antes del VAD
                                 print(f"\n⏭️ Segmento descartado (demasiado corto: {len(speech_buffer)} bytes)")
