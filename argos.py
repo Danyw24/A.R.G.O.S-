@@ -38,7 +38,7 @@ toggle_lock = Lock()  # Para thread safety
 
 led1 = LED(17)  # LED 1 - GPIO 17
 led2 = LED(27)  # LED 2 - GPIO 27  
-boton = Button(2)  # Botón - GPIO 2 (con pull-up interno)
+boton = Button(4)  # Botón - GPIO 2 (con pull-up interno)
 
 
 
@@ -58,6 +58,7 @@ BASETEN_API_KEY = "nc1GV4ms.1Uu1sTz51VVph6dQvU0v7lZWwVKEJBEd"
 PAYLOADS_PER_PROCESS = 1
 NUM_PROCESSES = 1
 MAX_REQUESTS_PER_PROCESS = 8
+muted = False
 
 "9Vux7EuB.5y3gD8nLjOzhLjqxB4wu8Rtsd77gPh2J"
 

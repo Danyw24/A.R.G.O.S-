@@ -6,7 +6,7 @@ import time
 led1 = LED(17)  # LED 1 - GPIO 17
 led2 = LED(27)  # LED 2 - GPIO 18  
 led3 = LED(22)  # LED 3 - GPIO 22
-boton = Button(2)  # Botón - GPIO 2 (con pull-up interno)
+boton = Button(4)  # Botón - GPIO 2 (con pull-up interno)
 
 # Estado del sistema
 muted = False
