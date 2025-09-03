@@ -415,8 +415,7 @@ def handle_connection(conn, session, semph):
     VAD_THRESHOLD = 0.6  # Umbral de confianza para Silero VAD (0.0-1.0)
     MIN_VAD_SPEECH_DURATION_MS = 150  # Duración mínima de segmento confirmado por VAD
     VAD_PADDING_MS = 50  # Padding antes/después de segmentos VAD
-
-    # ==========================================
+# ==========================================
     # INICIALIZACIÓN DE VARIABLES
     # ==========================================
     
@@ -438,6 +437,13 @@ def handle_connection(conn, session, semph):
     SILENCE_THRESHOLD = None
     is_calibrated = False
 
+    # === VARIABLES DE DEPURACIÓN ===
+    debug_frames_received = 0
+    debug_valid_frames = 0
+    debug_rms_below_50 = 0
+    debug_buffer_underruns = 0
+    debug_processing_errors = 0
+
     # ==========================================
     # FASE 1: CALIBRACIÓN ADAPTATIVA
     # ==========================================
@@ -456,6 +462,11 @@ def handle_connection(conn, session, semph):
                     return
                 
                 calibration_buffer += data
+                debug_frames_received += 1
+                
+                # === DEPURACIÓN: Verificar tamaño del buffer ===
+                if debug_frames_received % 10 == 0:
+                    print(f"   📊 Debug - Buffer: {len(calibration_buffer)} bytes, Frames recibidos: {debug_frames_received}")
                 
                 while len(calibration_buffer) >= FRAME_SIZE and frames_collected < CALIB_FRAMES:
                     frame = calibration_buffer[:FRAME_SIZE]
@@ -463,21 +474,51 @@ def handle_connection(conn, session, semph):
                     
                     try:
                         audio_np = np.frombuffer(frame, dtype=np.int16)
+                        debug_valid_frames += 1
+                        
                         if len(audio_np) > 0:
                             rms = np.sqrt(np.mean(np.square(audio_np.astype(np.float32))))
+                            
+                            # === DEPURACIÓN: Analizar RMS ===
+                            if frames_collected % 5 == 0:  # Cada 5 frames
+                                print(f"   🔍 Frame {frames_collected}: RMS={rms:.1f}, Audio samples={len(audio_np)}")
+                            
                             if rms > 50:
                                 rms_samples.append(rms)
+                                if len(rms_samples) % 3 == 0:  # Cada 3 muestras válidas
+                                    print(f"   ✅ Muestras RMS válidas: {len(rms_samples)}/15 requeridas")
+                            else:
+                                debug_rms_below_50 += 1
+                                
                             frames_collected += 1
                     except Exception as e:
-                        print(f"   ⚠️ Error procesando frame: {e}")
+                        debug_processing_errors += 1
+                        print(f"   ⚠️ Error procesando frame {frames_collected}: {e}")
                         continue
             
             except BlockingIOError:
+                debug_buffer_underruns += 1
                 time.sleep(0.01)
                 continue
             except Exception as e:
                 print(f"   ⚠️ Error de red durante calibración: {e}")
                 break
+
+        # === DEPURACIÓN FINAL ===
+        elapsed_time = time.time() - start_time
+        print(f"\n📈 ESTADÍSTICAS DE CALIBRACIÓN:")
+        print(f"   ⏱️ Tiempo transcurrido: {elapsed_time:.2f}s")
+        print(f"   📦 Frames recibidos de red: {debug_frames_received}")
+        print(f"   ✅ Frames válidos procesados: {debug_valid_frames}")
+        print(f"   🎯 Frames objetivo: {CALIB_FRAMES}")
+        print(f"   📊 Muestras RMS válidas (>50): {len(rms_samples)}")
+        print(f"   📉 RMS muy bajos (<50): {debug_rms_below_50}")
+        print(f"   🔄 Buffer underruns: {debug_buffer_underruns}")
+        print(f"   ❌ Errores de procesamiento: {debug_processing_errors}")
+        
+        if len(rms_samples) > 0:
+            print(f"   📋 Primeras RMS: {[f'{x:.1f}' for x in rms_samples[:10]]}")
+            print(f"   📈 RMS min/max: {min(rms_samples):.1f} / {max(rms_samples):.1f}")
 
         # Cálculo del umbral
         if len(rms_samples) >= 15:
@@ -489,25 +530,31 @@ def handle_connection(conn, session, semph):
             print(f"   🔊 Ruido ambiente promedio (RMS): {average_noise:.1f}")
             print(f"   🎯 Umbral de silencio adaptativo: {SILENCE_THRESHOLD:.1f}")
         else:
-            print(f"❌ Insuficientes muestras. Usando umbral de respaldo.")
+            print(f"\n❌ DIAGNÓSTICO: Insuficientes muestras RMS válidas:")
+            print(f"   📊 Obtenidas: {len(rms_samples)} / Requeridas: 15")
+            
+            # Diagnóstico específico
+            if debug_frames_received < 10:
+                print(f"   🚨 CAUSA: Muy pocos frames de red recibidos ({debug_frames_received})")
+            elif debug_valid_frames < CALIB_FRAMES // 2:
+                print(f"   🚨 CAUSA: Muchos frames corruptos o mal formateados")
+            elif debug_rms_below_50 > debug_valid_frames * 0.8:
+                print(f"   🚨 CAUSA: Audio demasiado silencioso (RMS < 50)")
+                print(f"   💡 SOLUCIÓN: Aumentar ganancia del micrófono")
+            elif debug_processing_errors > debug_valid_frames * 0.3:
+                print(f"   🚨 CAUSA: Errores de procesamiento numpy")
+            else:
+                print(f"   🚨 CAUSA: Calibración muy lenta o timeout")
+            
+            print(f"   🔄 Usando umbral de respaldo: {FALLBACK_THRESHOLD}")
             SILENCE_THRESHOLD = FALLBACK_THRESHOLD
             is_calibrated = True
     
     except Exception as e:
         print(f"❌ Error en calibración: {e}. Usando umbral de emergencia.")
+        print(f"🔍 Tipo de error: {type(e).__name__}")
         SILENCE_THRESHOLD = FALLBACK_THRESHOLD
         is_calibrated = True
-
-    # ==========================================
-    # FASE 2: DETECCIÓN DE VOZ CON SILERO VAD
-    # ==========================================
-    
-    if not is_calibrated or SILENCE_THRESHOLD is None:
-        print("❌ Imposible continuar sin un umbral definido.")
-        return
-
-    print(f"\n[🎤] Esperando audio... (Umbral RMS: {SILENCE_THRESHOLD:.1f}, VAD: {VAD_THRESHOLD})")
-    
     try:
         while True:
             data = conn.recv(4096)
